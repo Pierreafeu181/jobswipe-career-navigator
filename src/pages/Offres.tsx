@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Job } from "@/types/job";
 import { superlikeJob, getSuperlikedJobs } from "@/lib/swipes";
 import { Loader2, Heart, X, MapPin, Building2, Briefcase, ExternalLink, RotateCcw, Star, Home } from "lucide-react";
-import { SwipeableOfferCard } from "@/components/SwipeableOfferCard";
+import { JobSwipeScreen } from "@/components/swipe/JobSwipeScreen";
 import { OfferDetailModal } from "@/components/OfferDetailModal";
 
 interface OffresProps {
@@ -835,7 +835,7 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                       }
                       return (
                         <>
-                          <SwipeableOfferCard
+                          <JobSwipeScreen
                             offer={currentOffer}
                             onSwipeRight={handleSwipeRight}
                             onSwipeLeft={handleSwipeLeft}
@@ -865,12 +865,12 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                           </div>
                         )}
 
-                        {/* Boutons de contrôle - Style Tinder premium */}
+                        {/* Boutons de contrôle - Style Tinder premium (desktop uniquement, mobile utilise JobSwipeScreen) */}
                         {(() => {
                           const currentOffer = jobs[currentIndex];
                           if (!currentOffer) return null;
                           return (
-                            <div className="flex justify-center items-center gap-3 pt-4 pb-2">
+                            <div className="hidden md:flex justify-center items-center gap-3 pt-4 pb-2">
                               {/* Bouton Rewind (retour en arrière) */}
                               <motion.button
                                 onClick={handleRewind}
