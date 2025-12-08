@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -696,16 +695,14 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-rose-400 via-pink-500 via-purple-500 to-indigo-600 z-0 pointer-events-none" />
       
       {/* Bouton Accueil - Fixe en haut à gauche */}
-      <motion.button
+      <button
         onClick={() => navigate("/")}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed top-4 left-4 z-50 w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl cursor-pointer"
+        className="fixed top-4 left-4 z-50 w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
         title="Retour à l'accueil"
         aria-label="Retour à l'accueil"
       >
         <Home className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
-      </motion.button>
+      </button>
       
       <div className="flex-1 flex flex-col px-2 sm:px-3 py-4 relative z-10 overflow-y-auto">
         <div className="w-full max-w-[900px] mx-auto space-y-4 pb-8">
@@ -872,36 +869,30 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                           return (
                             <div className="hidden md:flex justify-center items-center gap-3 pt-4 pb-2">
                               {/* Bouton Rewind (retour en arrière) */}
-                              <motion.button
+                              <button
                                 onClick={handleRewind}
                                 disabled={swipeHistory.length === 0 || swiping !== null}
-                                whileTap={{ scale: 0.9 }}
-                                whileHover={{ scale: 1.1 }}
-                                className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 shadow-lg flex items-center justify-center transition-all duration-200 ease-out disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 border-white/30"
+                                className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 border-2 border-white/30"
                                 title={swipeHistory.length === 0 ? "Aucun swipe à annuler" : "Annuler le dernier swipe"}
                               >
                                 <RotateCcw className="w-6 h-6 text-white" strokeWidth={2.5} />
-                              </motion.button>
+                              </button>
 
                               {/* Bouton Dislike */}
-                              <motion.button
+                              <button
                                 onClick={handleSwipeLeft}
                                 disabled={swiping === currentOffer.id}
-                                whileTap={{ scale: 0.9 }}
-                                whileHover={{ scale: 1.1 }}
-                                className="w-16 h-16 rounded-full bg-white shadow-xl flex items-center justify-center transition-all duration-200 ease-out hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 border-red-100"
+                                className="w-16 h-16 rounded-full bg-white shadow-xl flex items-center justify-center transition-all duration-200 ease-out hover:shadow-2xl hover:scale-110 active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 border-2 border-red-100"
                                 title="Glisser vers la gauche ou cliquer pour passer"
                               >
                                 <X className="w-9 h-9 text-red-500" strokeWidth={3} />
-                              </motion.button>
+                              </button>
 
                               {/* Bouton Superlike */}
-                              <motion.button
+                              <button
                                 onClick={handleSuperLike}
                                 disabled={swiping === currentOffer.id || limitReached}
-                                whileTap={{ scale: 0.9 }}
-                                whileHover={{ scale: 1.1 }}
-                                className={`w-16 h-16 rounded-full shadow-xl flex items-center justify-center transition-all duration-200 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                                className={`w-16 h-16 rounded-full shadow-xl flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 ${
                                   limitReached 
                                     ? "bg-gray-200 border-2 border-gray-300" 
                                     : "bg-gradient-to-br from-blue-400 to-indigo-500 border-2 border-white/30 hover:shadow-2xl"
@@ -909,15 +900,13 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                                 title={limitReached ? `Limite de ${DAILY_LIKE_LIMIT} likes par jour atteinte` : "Superliker cette offre"}
                               >
                                 <Star className={`w-9 h-9 ${limitReached ? "text-gray-500" : "text-white fill-white"}`} strokeWidth={2} />
-                              </motion.button>
+                              </button>
 
                               {/* Bouton Like */}
-                              <motion.button
+                              <button
                                 onClick={handleSwipeRight}
                                 disabled={swiping === currentOffer.id || limitReached}
-                                whileTap={{ scale: 0.9 }}
-                                whileHover={{ scale: 1.1 }}
-                                className={`w-16 h-16 rounded-full shadow-xl flex items-center justify-center transition-all duration-200 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                                className={`w-16 h-16 rounded-full shadow-xl flex items-center justify-center transition-all duration-200 ease-out hover:scale-110 active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 ${
                                   limitReached 
                                     ? "bg-gray-200 border-2 border-gray-300" 
                                     : "bg-gradient-to-br from-emerald-400 to-green-500 border-2 border-white/30 hover:shadow-2xl"
@@ -925,7 +914,7 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                                 title={limitReached ? `Limite de ${DAILY_LIKE_LIMIT} likes par jour atteinte` : "Glisser vers la droite ou cliquer pour liker"}
                               >
                                 <Heart className={`w-9 h-9 ${limitReached ? "text-gray-500" : "text-white fill-white"}`} strokeWidth={2.5} />
-                              </motion.button>
+                              </button>
                             </div>
                           );
                         })()}

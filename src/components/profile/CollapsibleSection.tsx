@@ -35,3 +35,5 @@ export const CollapsibleSection = ({ title, defaultOpen = false, children }: Col
   );
 };
 
+
+

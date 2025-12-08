@@ -48,7 +48,13 @@ const AuthPage = () => {
       });
 
       if (authError) {
-        setError(authError.message);
+        let errorMessage = authError.message;
+        if (authError.message.includes('trop de temps') || authError.message.includes('timeout')) {
+          errorMessage = "L'inscription prend trop de temps. Vérifiez votre connexion internet et réessayez.";
+        } else if (authError.message.includes('User already registered')) {
+          errorMessage = "Cet email est déjà utilisé. Connectez-vous ou utilisez un autre email.";
+        }
+        setError(errorMessage);
         setLoading(false);
         return;
       }
@@ -80,7 +86,18 @@ const AuthPage = () => {
       // Succès - la session sera mise à jour automatiquement via onAuthStateChange
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Une erreur inattendue s'est produite");
+      // Gestion spécifique des erreurs de timeout
+      if (err instanceof Error) {
+        if (err.message.includes('trop de temps') || err.message.includes('timeout') || err.message.includes('AbortError')) {
+          setError("L'inscription prend trop de temps. Vérifiez votre connexion internet et réessayez.");
+        } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+          setError("Problème de connexion réseau. Vérifiez votre connexion internet.");
+        } else {
+          setError(err.message || "Une erreur inattendue s'est produite");
+        }
+      } else {
+        setError("Une erreur inattendue s'est produite");
+      }
     } finally {
       setLoading(false);
     }
@@ -98,7 +115,14 @@ const AuthPage = () => {
       });
 
       if (signInError) {
-        setError(signInError.message);
+        // Messages d'erreur plus clairs pour l'utilisateur
+        let errorMessage = signInError.message;
+        if (signInError.message.includes('Invalid login credentials')) {
+          errorMessage = "Email ou mot de passe incorrect";
+        } else if (signInError.message.includes('trop de temps') || signInError.message.includes('timeout')) {
+          errorMessage = "La connexion prend trop de temps. Vérifiez votre connexion internet et réessayez.";
+        }
+        setError(errorMessage);
         setLoading(false);
         return;
       }
@@ -106,7 +130,18 @@ const AuthPage = () => {
       // Succès - la session sera mise à jour automatiquement via onAuthStateChange
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Une erreur inattendue s'est produite");
+      // Gestion spécifique des erreurs de timeout
+      if (err instanceof Error) {
+        if (err.message.includes('trop de temps') || err.message.includes('timeout') || err.message.includes('AbortError')) {
+          setError("La connexion prend trop de temps. Vérifiez votre connexion internet et réessayez.");
+        } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+          setError("Problème de connexion réseau. Vérifiez votre connexion internet.");
+        } else {
+          setError(err.message || "Une erreur inattendue s'est produite");
+        }
+      } else {
+        setError("Une erreur inattendue s'est produite");
+      }
     } finally {
       setLoading(false);
     }
@@ -310,10 +345,13 @@ const AuthPage = () => {
               <PrimaryButton 
                 type="submit" 
                 disabled={loading || googleLoading} 
-                className="w-full rounded-2xl bg-mint hover:bg-mint-dark text-white font-medium shadow-sm transition-all duration-200 ease-out"
+                className="w-full rounded-2xl bg-mint hover:bg-mint-dark text-white font-medium shadow-sm transition-all duration-200 ease-out disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  "Chargement..."
+                  <span className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Connexion en cours...
+                  </span>
                 ) : mode === "login" ? (
                   <>
                     <LogIn className="w-5 h-5 mr-2" />

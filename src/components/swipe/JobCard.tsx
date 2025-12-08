@@ -264,3 +264,4 @@ export const JobCard = React.memo(({
 
 JobCard.displayName = "JobCard";
 
+

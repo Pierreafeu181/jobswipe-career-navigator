@@ -82,6 +82,35 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 /**
+ * Fonction fetch personnalisée avec timeout pour éviter les délais trop longs
+ * Timeout de 30 secondes pour les requêtes d'authentification et API
+ */
+const fetchWithTimeout = async (
+  url: RequestInfo | URL,
+  options?: RequestInit
+): Promise<Response> => {
+  const TIMEOUT_MS = 30000; // 30 secondes
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('La requête a pris trop de temps. Veuillez vérifier votre connexion et réessayer.');
+    }
+    throw error;
+  }
+};
+
+/**
  * Client Supabase configuré avec authentification et persistance de session
  * 
  * Utilisation :
@@ -104,6 +133,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+  },
+  global: {
+    fetch: fetchWithTimeout,
   },
 });
 

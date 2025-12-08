@@ -1,12 +1,17 @@
-import { Briefcase } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export const LogoHeader = () => {
   return (
-    <div className="bg-primary py-4 px-6 flex items-center justify-center gap-2 shadow-md">
-      <div className="bg-secondary rounded p-1.5">
-        <Briefcase className="w-5 h-5 text-primary-foreground" />
-      </div>
-      <h1 className="text-2xl font-bold text-primary-foreground">JobSwipe</h1>
+    <div className="bg-white py-5 px-6 flex items-center justify-center shadow-sm border-b border-gray-light relative z-20">
+      <Link 
+        to="/" 
+        className="hover:opacity-80 transition-opacity duration-200 ease-out cursor-pointer"
+      >
+        <h1 className="text-4xl font-semibold text-center">
+          <span className="text-graphite">Job</span>
+          <span className="text-mint">Swipe</span>
+        </h1>
+      </Link>
     </div>
   );
 };

@@ -51,11 +51,33 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Alan + Energy palette
+        mint: {
+          DEFAULT: "#00C2A8",
+          dark: "#009F8A",
+          light: "#E5F8F6",
+        },
+        indigo: {
+          DEFAULT: "#6772E5",
+          soft: "#6772E5",
+        },
+        graphite: "#1E1E1E",
+        "ultra-light": "#F7F9FA",
+        gray: {
+          light: "#E5E7EB",
+          medium: "#9CA3AF",
+          dark: "#4B5563",
+        },
+      },
+      backgroundImage: {
+        "gradient-mint": "linear-gradient(135deg, #00C2A8 0%, #009F8A 100%)",
+        "gradient-indigo": "linear-gradient(135deg, #6772E5 0%, #5A67D8 100%)",
       },
       boxShadow: {
-        sm: "var(--shadow-sm)",
-        md: "var(--shadow-md)",
-        lg: "var(--shadow-lg)",
+        sm: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
+        md: "0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02)",
+        lg: "0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02)",
+        card: "0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02)",
       },
       borderRadius: {
         lg: "var(--radius)",

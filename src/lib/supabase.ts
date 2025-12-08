@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { Job } from "@/types/job";
 
 export const fetchJobs = async (limit = 50): Promise<Job[]> => {
