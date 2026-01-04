@@ -50,12 +50,6 @@ const getEnvVar = (viteKey: string, nextKey: string): string => {
     }
   }
   
-  // Debug : afficher les valeurs disponibles pour aider au diagnostic
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    console.error('Variables d\'environnement disponibles:', Object.keys(import.meta.env));
-    console.error(`Valeur de ${viteKey}:`, import.meta.env[viteKey]);
-  }
-  
   throw new Error(
     `Variable d'environnement manquante : ${viteKey} ou ${nextKey}. ` +
     `Veuillez définir l'une de ces variables dans votre fichier .env et redémarrer le serveur de développement.`
