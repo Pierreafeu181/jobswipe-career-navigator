@@ -5,14 +5,17 @@ import "./index.css";
 // Enregistrement du Service Worker pour la PWA
 // Ce code s'exécute uniquement côté client (navigateur)
 // 
-// IMPORTANT pour Vercel/Production :
-// - Le service worker fonctionnera automatiquement en HTTPS sur Vercel
+// IMPORTANT pour GitHub Pages :
+// - Le service worker fonctionnera automatiquement en HTTPS sur GitHub Pages
 // - L'application sera installable comme PWA une fois déployée
-// - Le chemin "/service-worker.js" est relatif et fonctionnera en production
+// - Le chemin utilise import.meta.env.BASE_URL pour s'adapter automatiquement au base path
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
+    const base = import.meta.env.BASE_URL;
     navigator.serviceWorker
-      .register("/service-worker.js")
+      .register(`${base}service-worker.js`, {
+        scope: base,
+      })
       .then((registration) => {
         console.log("[ServiceWorker] Registered successfully:", registration.scope);
         
