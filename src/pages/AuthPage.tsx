@@ -155,7 +155,7 @@ const AuthPage = () => {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: "https://pierreafeu181.github.io/jobswipe-career-navigator/#/auth/callback",
         },
       });
 
