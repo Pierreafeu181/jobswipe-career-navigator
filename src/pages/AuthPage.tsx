@@ -152,10 +152,11 @@ const AuthPage = () => {
     setGoogleLoading(true);
 
     try {
+      const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}#/`;
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: "https://pierreafeu181.github.io/jobswipe-career-navigator/#/auth/callback",
+          redirectTo,
         },
       });
 

@@ -24,13 +24,18 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
+    let done = false;
+    
     // Récupérer la session au montage
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setLoading(false);
+      if (!done) {
+        done = true;
+        setAuthReady(true);
+      }
     });
 
     // S'abonner aux changements d'état d'authentification
@@ -38,12 +43,16 @@ const App = () => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (!done) {
+        done = true;
+        setAuthReady(true);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
+  if (!authReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-muted-foreground">Chargement...</div>
@@ -61,7 +70,7 @@ const App = () => {
             {/* Route de callback OAuth - accessible sans session */}
             <Route path="/auth/callback" element={<AuthCallback />} />
             
-            {session ? (
+            {authReady && session ? (
               <>
                 {/* Routes protégées - utilisateur authentifié */}
                 <Route path="/" element={<HomePage session={session} />} />
@@ -80,12 +89,12 @@ const App = () => {
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </>
-            ) : (
+            ) : authReady && !session ? (
               <>
-                {/* Routes publiques - utilisateur non authentifié */}
+                {/* Routes publiques - utilisateur non authentifié (seulement après authReady) */}
                 <Route path="*" element={<AuthPage />} />
               </>
-            )}
+            ) : null}
           </Routes>
         </HashRouter>
       </TooltipProvider>

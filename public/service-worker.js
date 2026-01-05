@@ -7,19 +7,20 @@
  * IMPORTANT : Les requêtes vers Supabase et autres APIs ne sont PAS interceptées
  * pour ne pas casser la logique métier de l'application.
  * 
- * Compatibilité Vercel/Production :
- * - Fonctionne automatiquement en HTTPS sur Vercel (requis pour les PWA)
- * - Les chemins sont relatifs et fonctionnent en production
+ * Compatibilité GitHub Pages :
+ * - Fonctionne automatiquement en HTTPS sur GitHub Pages (requis pour les PWA)
+ * - Les chemins incluent le base path /jobswipe-career-navigator/ pour GitHub Pages
  * - L'application sera installable une fois déployée
  */
 
 const CACHE_NAME = "jobswipe-cache-v1";
+const BASE_PATH = "/jobswipe-career-navigator";
 const URLS_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  `${BASE_PATH}/`,
+  `${BASE_PATH}/index.html`,
+  `${BASE_PATH}/manifest.webmanifest`,
+  `${BASE_PATH}/icons/icon-192.png`,
+  `${BASE_PATH}/icons/icon-512.png`
 ];
 
 // Installation du service worker : on pré-cache quelques ressources de base
