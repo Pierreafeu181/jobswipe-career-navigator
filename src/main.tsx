@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { bootstrapSupabaseAuth } from "./lib/authBootstrap";
 
 // Enregistrement du Service Worker pour la PWA
 // Ce code s'exécute uniquement côté client (navigateur)
@@ -37,4 +38,8 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Bootstrap Supabase auth before rendering (handle OAuth callbacks)
+(async () => {
+  await bootstrapSupabaseAuth();
+  createRoot(document.getElementById("root")!).render(<App />);
+})();
