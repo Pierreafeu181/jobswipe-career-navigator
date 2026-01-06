@@ -34,12 +34,25 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener("statechange", () => {
-              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                console.log("[ServiceWorker] New service worker available. Please refresh the page.");
+              if (newWorker.state === "installed") {
+                if (navigator.serviceWorker.controller) {
+                  // New service worker available - prompt reload (optional)
+                  console.log("[ServiceWorker] New service worker available. Reloading page...");
+                  // Auto-reload to activate new service worker
+                  window.location.reload();
+                } else {
+                  // First install
+                  console.log("[ServiceWorker] Service worker installed for the first time.");
+                }
               }
             });
           }
         });
+        
+        // Check for updates periodically
+        setInterval(() => {
+          registration.update();
+        }, 60000); // Check every minute
       })
       .catch((error) => {
         console.error("[ServiceWorker] Registration failed:", error);
