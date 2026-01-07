@@ -422,8 +422,10 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
   };
 
   // Handler pour ouvrir la vue détaillée
-  const handleOpenDetails = () => {
-    const currentOffer = jobs[currentIndex];
+  const handleOpenDetails = (job?: Job | any) => {
+    // Si l'argument est un Job (a une propriété 'company'), on l'utilise.
+    // Sinon (undefined ou event venant du swipe), on utilise le job courant.
+    const currentOffer = (job && typeof job === 'object' && 'company' in job) ? (job as Job) : jobs[currentIndex];
     console.log("handleOpenDetails appelé", { currentOffer, currentIndex, jobsLength: jobs.length });
     if (currentOffer) {
       setSelectedOffer(currentOffer);
@@ -1030,13 +1032,19 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                         </div>
 
                         {/* Bouton pour voir la fiche */}
-                        <div className="pt-2">
+                        <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                          <button
+                            onClick={() => handleOpenDetails(job)}
+                            className="flex-1 px-6 py-3 rounded-2xl bg-gray-900 text-white font-medium shadow-sm hover:bg-gray-800 transition-all duration-200 ease-out flex items-center justify-center gap-2"
+                          >
+                            🔍 Détails
+                          </button>
                           <button
                             onClick={() => window.open(job.redirect_url, "_blank")}
-                            className="w-full px-6 py-3 rounded-2xl bg-indigo text-white font-medium shadow-sm hover:bg-indigo/90 transition-all duration-200 ease-out flex items-center justify-center gap-2"
+                            className="flex-1 px-6 py-3 rounded-2xl bg-indigo text-white font-medium shadow-sm hover:bg-indigo/90 transition-all duration-200 ease-out flex items-center justify-center gap-2"
                           >
                             <ExternalLink className="w-4 h-4" />
-                            Voir la fiche de poste
+                            Voir la fiche
                           </button>
                         </div>
                       </div>
