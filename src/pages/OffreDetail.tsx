@@ -10,7 +10,7 @@ import { loadProfile } from "@/lib/storage";
 import { addFavorite, removeFavorite, isFavorite } from "@/lib/storage";
 import { calculateCompatibilityScore } from "@/lib/scoring";
 import { Job } from "@/types/job";
-import { Loader2, ExternalLink, FileText, TrendingUp, Heart } from "lucide-react";
+import { Loader2, ExternalLink, FileText, TrendingUp, Heart, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const OffreDetail = () => {
@@ -22,6 +22,17 @@ const OffreDetail = () => {
   const [favorite, setFavorite] = useState(false);
   const profile = loadProfile();
   const score = job ? calculateCompatibilityScore(job, profile) : 0;
+
+  const downloadFile = (filename: string, content: string) => {
+    const element = document.createElement("a");
+    const file = new Blob([content], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element); // Required for this to work in FireFox
+    element.click();
+    URL.revokeObjectURL(element.href);
+    document.body.removeChild(element);
+  };
 
   useEffect(() => {
     if (id) {
@@ -154,6 +165,23 @@ const OffreDetail = () => {
                 >
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Score
+                </PrimaryButton>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <PrimaryButton
+                  onClick={() => downloadFile('CV.txt', 'CV')}
+                  className="bg-green-500 hover:bg-green-600"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  CV
+                </PrimaryButton>
+                <PrimaryButton
+                  onClick={() => downloadFile('lettre_de_motivation.txt', 'lettre de motivation')}
+                  className="bg-green-500 hover:bg-green-600"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Lettre de motivation
                 </PrimaryButton>
               </div>
             </div>

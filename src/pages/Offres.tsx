@@ -1034,8 +1034,8 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                         {/* Bouton pour voir la fiche */}
                         <div className="pt-2 flex flex-col sm:flex-row gap-3">
                           <button
-                            onClick={() => handleOpenDetails(job)}
-                            className="flex-1 px-6 py-3 rounded-2xl bg-gray-900 text-white font-medium shadow-sm hover:bg-gray-800 transition-all duration-200 ease-out flex items-center justify-center gap-2"
+                            onClick={() => navigate(`/offres/${job.id}`)}
+                            className="flex-1 px-6 py-3 rounded-2xl bg-white text-black font-medium shadow-lg hover:shadow-xl transition-all duration-200 ease-out flex items-center justify-center gap-2"
                           >
                             🔍 Détails
                           </button>
