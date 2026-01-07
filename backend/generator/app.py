@@ -1,0 +1,89 @@
+import os
+import sys
+import base64
+import traceback
+from typing import Dict, Any
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+# Ajout du dossier courant au path pour garantir l'import du module functions
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from functions.generator_service import JobSwipeGeneratorService
+
+app = FastAPI(title="JobSwipe Generator API", version="1.0")
+
+# Configuration CORS pour permettre les appels depuis le frontend (React)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En prod, remplacez par l'URL de votre frontend (ex: http://localhost:5173)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialisation du service
+# Les fichiers seront générés dans un dossier 'output_api' par défaut
+OUTPUT_DIR = os.path.join(os.getcwd(), "output_api")
+service = JobSwipeGeneratorService(output_dir=OUTPUT_DIR)
+
+class ApplicationRequest(BaseModel):
+    cv_data: Dict[str, Any]
+    offer_data: Dict[str, Any]
+    gender: str = "M"  # "M" pour masculin, "F" pour féminin
+
+@app.post("/generate-cv")
+async def generate_cv(request: ApplicationRequest):
+    """
+    Génère uniquement le CV optimisé (PDF).
+    """
+    try:
+        results = service.process_cv(request.cv_data, request.offer_data)
+        
+        response_data = {"files": {}}
+        # Encodage du CV PDF
+        if "cv_pdf" in results.get("paths", {}):
+            with open(results["paths"]["cv_pdf"], "rb") as f:
+                response_data["files"]["cv_pdf"] = base64.b64encode(f.read()).decode("utf-8")
+
+        return response_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-cover-letter")
+async def generate_cover_letter(request: ApplicationRequest):
+    """
+    Génère uniquement la lettre de motivation (PDF).
+    """
+    try:
+        results = service.process_motivation(
+            request.cv_data, request.offer_data, gender=request.gender
+        )
+        
+        response_data = {"files": {}}
+        # Encodage de la Lettre PDF
+        if "cl_pdf" in results.get("paths", {}):
+            with open(results["paths"]["cl_pdf"], "rb") as f:
+                response_data["files"]["cl_pdf"] = base64.b64encode(f.read()).decode("utf-8")
+
+        return response_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/score-application")
+async def score_application(request: ApplicationRequest):
+    """
+    Calcule le score de compatibilité et fournit une analyse détaillée.
+    """
+    try:
+        results = service.process_scoring(request.cv_data, request.offer_data)
+        return results
+    except Exception as e:
+        print(f"ERREUR 500 dans /score-application : {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

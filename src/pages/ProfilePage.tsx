@@ -12,6 +12,9 @@ import { SkillsSection } from "@/components/profile/SkillsSection";
 import { InterestsSection } from "@/components/profile/InterestsSection";
 import { CollapsibleSection } from "@/components/profile/CollapsibleSection";
 
+import { saveProfile as saveProfileToStorage } from "@/lib/storage";
+import { UserProfile } from "@/types/job";
+
 interface ProfilePageProps {
   userId: string;
 }
@@ -147,6 +150,24 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
 
       console.log("Profil chargé avec succès:", loadedProfile);
       setProfile(loadedProfile);
+
+      // Conversion et sauvegarde pour les anciennes pages
+      const userProfileForStorage: UserProfile = {
+        firstName: loadedProfile.first_name || '',
+        lastName: loadedProfile.last_name || '',
+        formations: loadedProfile.education && loadedProfile.education.length > 0
+          ? loadedProfile.education.map(e => `${e.degree} - ${e.school}`).join("\n")
+          : "Aucune formation renseignée.",
+        experiences: loadedProfile.experiences && loadedProfile.experiences.length > 0
+          ? loadedProfile.experiences.map(e => `${e.role} chez ${e.company}`).join("\n")
+          : "Aucune expérience renseignée.",
+        competences: (loadedProfile.hardSkills && loadedProfile.hardSkills.length > 0) || (loadedProfile.softSkills && loadedProfile.softSkills.length > 0)
+          ? [...(loadedProfile.hardSkills || []), ...(loadedProfile.softSkills || [])].join(", ")
+          : "Aucune compétence renseignée.",
+        contact: loadedProfile.email || loadedProfile.phone || "Aucun contact renseigné.",
+      };
+      saveProfileToStorage(userProfileForStorage);
+
     } catch (err) {
       console.error("Erreur lors du chargement du profil:", err);
       setError(err instanceof Error ? err.message : "Une erreur s'est produite");
@@ -274,6 +295,24 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
 
       console.log("Profil sauvegardé avec succès:", result);
       setSaveStatus("success");
+
+      // Mettre à jour également le profil simplifié dans le localStorage
+      const userProfileForStorage: UserProfile = {
+        firstName: profile.first_name || '',
+        lastName: profile.last_name || '',
+        formations: profile.education && profile.education.length > 0
+          ? profile.education.map(e => `${e.degree} - ${e.school}`).join("\n")
+          : "Aucune formation renseignée.",
+        experiences: profile.experiences && profile.experiences.length > 0
+          ? profile.experiences.map(e => `${e.role} chez ${e.company}`).join("\n")
+          : "Aucune expérience renseignée.",
+        competences: (profile.hardSkills && profile.hardSkills.length > 0) || (profile.softSkills && profile.softSkills.length > 0)
+          ? [...(profile.hardSkills || []), ...(profile.softSkills || [])].join(", ")
+          : "Aucune compétence renseignée.",
+        contact: profile.email || profile.phone || "Aucun contact renseigné.",
+      };
+      saveProfileToStorage(userProfileForStorage);
+
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (err: any) {
       console.error("Erreur lors de la sauvegarde du profil:", err);

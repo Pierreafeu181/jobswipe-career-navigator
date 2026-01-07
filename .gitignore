@@ -29,3 +29,15 @@ vite.config.ts.timestamp-*.mjs
 *.njsproj
 *.sln
 *.sw?
+
+output_api/
+output/
+
+__pycache__/
+output_demo/
+cv/
+cover_letter/
+
+*.pdf
+*.docx
+*.html
