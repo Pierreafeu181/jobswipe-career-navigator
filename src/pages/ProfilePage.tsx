@@ -11,6 +11,7 @@ import { ProjectsSection } from "@/components/profile/ProjectsSection";
 import { SkillsSection } from "@/components/profile/SkillsSection";
 import { InterestsSection } from "@/components/profile/InterestsSection";
 import { CollapsibleSection } from "@/components/profile/CollapsibleSection";
+import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
 interface ProfilePageProps {
   userId: string;
@@ -456,6 +457,21 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
           
           <CollapsibleSection title="Centres d'intérêt & Activités">
             <InterestsSection profile={profile} onUpdate={handleProfileUpdate} />
+          </CollapsibleSection>
+        </div>
+
+        {/* Section Paramètres du compte / Zone de danger */}
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <CollapsibleSection title="Paramètres du compte" defaultOpen={false}>
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-red-50 border border-red-200">
+                <h3 className="font-semibold text-red-800 mb-2">Zone de danger</h3>
+                <p className="text-sm text-red-700 mb-4">
+                  La suppression de votre compte est définitive. Toutes vos données seront supprimées et ne pourront pas être récupérées.
+                </p>
+                <DeleteAccountButton />
+              </div>
+            </div>
           </CollapsibleSection>
         </div>
 
