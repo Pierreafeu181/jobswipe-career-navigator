@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 interface UserData {
-  identity: { firstname: string; lastname: string; email: string; phone: string };
+  identity: { firstname: string; lastname: string; email: string; phone: string; city: string; gender: string; handicap: string };
   links: { linkedin: string; portfolio: string };
   documents: { 
     cv_base64: string; cv_name: string; cv_type: string;
@@ -9,35 +9,56 @@ interface UserData {
     cover_letter_base64: string; cover_letter_name: string; cover_letter_type: string;
   };
   ai_responses: { why_us: string; salary_expectations: string };
+  structured_cv?: {
+    cv_title?: string;
+    objective?: string;
+    experiences?: any[];
+    education?: any[];
+    skills?: {
+      sections?: { section_title: string; items: string[] }[];
+      highlighted?: string[];
+    };
+    interests?: any[];
+    projects?: any[];
+  };
 }
 
 const INITIAL_DATA: UserData = {
-  identity: { firstname: "", lastname: "", email: "", phone: "" },
+  identity: { firstname: "", lastname: "", email: "", phone: "", city: "", gender: "", handicap: "" },
   links: { linkedin: "", portfolio: "" },
   documents: { cv_base64: "", cv_name: "", cv_type: "", cover_letter_text: "", cover_letter_base64: "", cover_letter_name: "", cover_letter_type: "" },
-  ai_responses: { why_us: "", salary_expectations: "" }
+  ai_responses: { why_us: "", salary_expectations: "" },
+  structured_cv: undefined
 };
 
 const Popup: React.FC = () => {
   const [formData, setFormData] = useState<UserData>(INITIAL_DATA);
   const [status, setStatus] = useState<string>("Prêt à postuler");
   const [statusType, setStatusType] = useState<"info" | "success" | "error">("info");
-  const [activeTab, setActiveTab] = useState<"info" | "docs">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "cv" | "docs" | "actions">("info");
   const [apiKey, setApiKey] = useState<string>("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    chrome.storage.local.get(['jobswipe_user_data'], (result) => {
-      if (result.jobswipe_user_data) {
-        setFormData(result.jobswipe_user_data);
-      }
+    // Chargement initial
+    chrome.storage.local.get(['jobswipe_user_data', 'gemini_api_key'], (result) => {
+      if (result.jobswipe_user_data) setFormData(result.jobswipe_user_data);
+      if (result.gemini_api_key) setApiKey(result.gemini_api_key);
     });
-    chrome.storage.local.get(['gemini_api_key'], (result) => {
-      if (result.gemini_api_key) {
-        setApiKey(result.gemini_api_key);
+
+    // Écoute des changements (Push depuis le site)
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName === 'local' && changes.jobswipe_user_data) {
+        setFormData(changes.jobswipe_user_data.newValue);
+        const hasCV = !!changes.jobswipe_user_data.newValue.structured_cv;
+        setStatus(hasCV ? "Profil et CV structuré reçus !" : "Profil mis à jour depuis le site !");
+        setStatusType("success");
       }
-    });
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
   const handleChange = (section: keyof UserData, field: string, value: string) => {
@@ -69,6 +90,15 @@ const Popup: React.FC = () => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const downloadFile = (base64: string, filename: string) => {
+    const link = document.createElement('a');
+    link.href = base64;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleSave = () => {
@@ -154,6 +184,9 @@ const Popup: React.FC = () => {
                       if(f === 'lastname') return 'Nom';
                       if(f === 'email') return 'Email';
                       if(f === 'phone') return 'Téléphone';
+                      if(f === 'city') return 'Ville';
+                      if(f === 'gender') return 'Genre';
+                      if(f === 'handicap') return 'Handicap';
                       if(f === 'linkedin') return 'LinkedIn';
                       if(f === 'portfolio') return 'Portfolio';
                       if(f === 'salary') return 'Salaire';
@@ -285,6 +318,36 @@ const Popup: React.FC = () => {
     }
   };
 
+  const handleScanOffer = async () => {
+    setStatus("Scan de l'offre...");
+    setStatusType("info");
+    
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        chrome.tabs.sendMessage(tab.id, { action: "scan_job_offer" }, (response) => {
+          if (chrome.runtime.lastError || !response) {
+             setStatus("Erreur scan");
+             setStatusType("error");
+          } else {
+             const offerData = response.data;
+             chrome.storage.local.set({ scanned_job_offer: offerData }, () => {
+                setStatus("Offre scannée !");
+                setStatusType("success");
+             });
+          }
+        });
+      }
+    } catch (e) {
+      setStatus("Erreur technique");
+      setStatusType("error");
+    }
+  };
+
+  const openSite = () => {
+    chrome.tabs.create({ url: 'http://localhost:5173' });
+  };
+
   return (
     <div className="p-4 bg-gray-50 text-gray-800 min-h-full">
       <div className="flex justify-between items-center mb-4">
@@ -308,13 +371,6 @@ const Popup: React.FC = () => {
         </div>
       )}
       
-      <button 
-        onClick={handleAnalyze}
-        className="mb-4 w-full bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-semibold py-2 px-4 rounded transition-all text-sm flex items-center justify-center gap-2 hover:scale-105 cursor-pointer"
-      >
-        <span>🔍</span> Analyser le formulaire
-      </button>
-
       <div className="flex mb-4 border-b border-gray-200">
         <button 
           className={`flex-1 py-2 text-sm font-medium transition-all hover:scale-105 cursor-pointer ${activeTab === 'info' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}`}
@@ -323,27 +379,138 @@ const Popup: React.FC = () => {
           Infos
         </button>
         <button 
+          className={`flex-1 py-2 text-sm font-medium transition-all hover:scale-105 cursor-pointer ${activeTab === 'cv' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}`}
+          onClick={() => setActiveTab('cv')}
+        >
+          CV
+        </button>
+        <button 
           className={`flex-1 py-2 text-sm font-medium transition-all hover:scale-105 cursor-pointer ${activeTab === 'docs' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}`}
           onClick={() => setActiveTab('docs')}
         >
           Documents
         </button>
+        <button 
+          className={`flex-1 py-2 text-sm font-medium transition-all hover:scale-105 cursor-pointer ${activeTab === 'actions' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}`}
+          onClick={() => setActiveTab('actions')}
+        >
+          Postuler
+        </button>
       </div>
 
       <div className="space-y-3 mb-4">
-        {activeTab === 'info' ? (
+        {activeTab === 'info' && (
           <>
             <input type="text" placeholder="Prénom" className="w-full p-2 border rounded text-sm" value={formData.identity.firstname} onChange={(e) => handleChange('identity', 'firstname', e.target.value)} />
             <input type="text" placeholder="Nom" className="w-full p-2 border rounded text-sm" value={formData.identity.lastname} onChange={(e) => handleChange('identity', 'lastname', e.target.value)} />
             <input type="email" placeholder="Email" className="w-full p-2 border rounded text-sm" value={formData.identity.email} onChange={(e) => handleChange('identity', 'email', e.target.value)} />
             <input type="tel" placeholder="Téléphone" className="w-full p-2 border rounded text-sm" value={formData.identity.phone} onChange={(e) => handleChange('identity', 'phone', e.target.value)} />
+            <input type="text" placeholder="Ville" className="w-full p-2 border rounded text-sm" value={formData.identity.city} onChange={(e) => handleChange('identity', 'city', e.target.value)} />
+            <input type="text" placeholder="Genre (H/F)" className="w-full p-2 border rounded text-sm" value={formData.identity.gender} onChange={(e) => handleChange('identity', 'gender', e.target.value)} />
+            <input type="text" placeholder="Handicap (Oui/Non)" className="w-full p-2 border rounded text-sm" value={formData.identity.handicap} onChange={(e) => handleChange('identity', 'handicap', e.target.value)} />
             <input type="url" placeholder="LinkedIn URL" className="w-full p-2 border rounded text-sm" value={formData.links.linkedin} onChange={(e) => handleChange('links', 'linkedin', e.target.value)} />
+            <input type="url" placeholder="Portfolio URL" className="w-full p-2 border rounded text-sm" value={formData.links.portfolio} onChange={(e) => handleChange('links', 'portfolio', e.target.value)} />
             <input type="text" placeholder="Prétentions salariales" className="w-full p-2 border rounded text-sm" value={formData.ai_responses.salary_expectations} onChange={(e) => handleChange('ai_responses', 'salary_expectations', e.target.value)} />
+            <textarea placeholder="Pourquoi nous ?" className="w-full p-2 border rounded text-sm h-20" value={formData.ai_responses.why_us} onChange={(e) => handleChange('ai_responses', 'why_us', e.target.value)} />
           </>
-        ) : (
+        )}
+
+        {activeTab === 'cv' && (
+          formData.structured_cv ? (
+            <div className="space-y-4 text-xs">
+              <div className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                <h3 className="font-bold text-indigo-700 mb-1">Titre & Objectif</h3>
+                <p className="font-semibold mb-1">{formData.structured_cv.cv_title}</p>
+                <p className="text-gray-600 italic leading-relaxed">{formData.structured_cv.objective}</p>
+              </div>
+
+              {formData.structured_cv.experiences && formData.structured_cv.experiences.length > 0 && (
+                <div className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                  <h3 className="font-bold text-indigo-700 mb-2">Expériences</h3>
+                  <div className="space-y-3">
+                    {formData.structured_cv.experiences.map((exp: any, i: number) => (
+                      <div key={i}>
+                        <div className="flex justify-between font-semibold">
+                          <span>{exp.target_title || exp.source_title}</span>
+                          <span className="text-gray-500 text-[10px] whitespace-nowrap ml-2">{exp.start_date} - {exp.end_date}</span>
+                        </div>
+                        <div className="text-indigo-600 mb-1">{exp.company}</div>
+                        <ul className="list-disc pl-3 text-gray-600 space-y-0.5 marker:text-gray-400">
+                          {exp.bullets?.map((b: string, j: number) => <li key={j}>{b}</li>)}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {formData.structured_cv.education && formData.structured_cv.education.length > 0 && (
+                <div className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                  <h3 className="font-bold text-indigo-700 mb-2">Formation</h3>
+                  <div className="space-y-2">
+                    {formData.structured_cv.education.map((edu: any, i: number) => (
+                      <div key={i}>
+                        <div className="font-semibold">{edu.degree}</div>
+                        <div className="flex justify-between text-gray-600">
+                          <span>{edu.school}</span>
+                          <span className="text-[10px]">{edu.start_date} - {edu.end_date}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {formData.structured_cv.skills && (
+                <div className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                  <h3 className="font-bold text-indigo-700 mb-2">Compétences</h3>
+                  <div className="space-y-2">
+                    {formData.structured_cv.skills.sections?.map((section: any, i: number) => (
+                      <div key={i}>
+                        <span className="font-semibold text-gray-800">{section.section_title}: </span>
+                        <span className="text-gray-600">{section.items.join(", ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {formData.structured_cv.interests && formData.structured_cv.interests.length > 0 && (
+                <div className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                  <h3 className="font-bold text-indigo-700 mb-2">Intérêts</h3>
+                  <ul className="space-y-1">
+                    {formData.structured_cv.interests.map((int: any, i: number) => (
+                      <li key={i} className="text-gray-600">
+                        <span className="font-semibold text-gray-800">{int.label}</span>
+                        {int.sentence && <span>: {int.sentence}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 py-8 text-xs">
+              <p className="mb-2">Aucune donnée CV structurée.</p>
+              <p>Générez un CV sur le site et cliquez sur "Envoyer vers l'extension".</p>
+            </div>
+          )
+        )}
+
+        {activeTab === 'docs' && (
           <>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-700">CV (PDF)</label>
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-medium text-gray-700">CV (PDF)</label>
+                {formData.documents.cv_base64 && (
+                  <button 
+                    onClick={() => downloadFile(formData.documents.cv_base64, formData.documents.cv_name || 'cv.pdf')}
+                    className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded hover:bg-indigo-200 transition-colors"
+                  >
+                    Télécharger
+                  </button>
+                )}
+              </div>
               <input 
                 type="file" 
                 accept="application/pdf"
@@ -355,7 +522,17 @@ const Popup: React.FC = () => {
               )}
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-700">Lettre de motivation (PDF)</label>
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-medium text-gray-700">Lettre de motivation (PDF)</label>
+                {formData.documents.cover_letter_base64 && (
+                  <button 
+                    onClick={() => downloadFile(formData.documents.cover_letter_base64, formData.documents.cover_letter_name || 'lettre_motivation.pdf')}
+                    className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded hover:bg-indigo-200 transition-colors"
+                  >
+                    Télécharger
+                  </button>
+                )}
+              </div>
               <input 
                 type="file" 
                 accept="application/pdf"
@@ -377,20 +554,47 @@ const Popup: React.FC = () => {
             </div>
           </>
         )}
+
+        {activeTab === 'actions' && (
+          <div className="space-y-4">
+            {status === "Site introuvable." && (
+              <button onClick={openSite} className="w-full bg-indigo-50 text-indigo-700 py-2 rounded text-xs font-semibold hover:bg-indigo-100 transition-colors border border-indigo-200">
+                Ouvrir l'app (Localhost)
+              </button>
+            )}
+
+            <div className="flex gap-2">
+              <button 
+                onClick={handleAnalyze}
+                className="w-full bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-semibold py-3 px-2 rounded transition-all text-xs flex items-center justify-center gap-1 hover:scale-105 cursor-pointer"
+              >
+                <span>🔍</span> Analyser page
+              </button>
+            </div>
+
+            <button 
+              onClick={handleScanOffer}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-2 rounded transition-all text-sm hover:scale-105 cursor-pointer flex items-center justify-center gap-2 shadow-md"
+            >
+              <span>📋</span> Scanner l'offre (pour le site)
+            </button>
+
+            <button 
+              onClick={handleAIFill}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-2 rounded transition-all text-sm hover:scale-105 cursor-pointer flex items-center justify-center gap-2 shadow-md"
+            >
+              <span>✨</span> Remplir le formulaire (IA)
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2">
         <button 
           onClick={handleSave}
-          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-2 rounded transition-all text-sm hover:scale-105 cursor-pointer"
+          className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-2 rounded transition-all text-sm hover:scale-105 cursor-pointer"
         >
           Sauvegarder
-        </button>
-        <button 
-          onClick={handleAIFill}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-2 rounded transition-all text-sm hover:scale-105 cursor-pointer flex items-center justify-center gap-1"
-        >
-          <span>✨</span> Remplir (IA)
         </button>
       </div>
       

@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabaseClient";
 import { Job } from "@/types/job";
 import { superlikeJob, getSuperlikedJobs } from "@/lib/swipes";
-import { Loader2, Heart, X, MapPin, Building2, Briefcase, ExternalLink, RotateCcw, Star, Home } from "lucide-react";
+import { Loader2, Heart, X, MapPin, Building2, Briefcase, ExternalLink, RotateCcw, Star, Home, Download } from "lucide-react";
 import { JobSwipeScreen } from "@/components/swipe";
 import { OfferDetailModal } from "@/components/OfferDetailModal";
+import { useToast } from "@/hooks/use-toast";
 
 interface OffresProps {
   userId: string;
@@ -79,6 +80,7 @@ const JobScore = ({ job, cvData }: { job: Job; cvData: any }) => {
 // Composant pour la page de swipe des offres (JobswipeOffers)
 const JobswipeOffers = ({ userId }: OffresProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   // State pour l'onglet actif
   const [activeTab, setActiveTab] = useState<"all" | "liked" | "superliked">("all");
@@ -422,6 +424,7 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
           job_id: jobId,
           direction: direction,
           is_superlike: isSuperlike,
+          created_at: new Date().toISOString(), // Force update timestamp to bring it to top
         },
         {
           onConflict: "user_id,job_id",
@@ -702,6 +705,102 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
     }
   };
 
+  const handleImportOffer = () => {
+      console.log("Demande d'importation d'offre envoyée à l'extension...");
+      // Demander l'offre à l'extension
+      window.postMessage({ type: "JOBSWIPE_REQUEST_OFFER" }, "*");
+      
+      // Écouter la réponse (une seule fois)
+      const handler = async (event: MessageEvent) => {
+          if (event.source !== window) return;
+          if (event.data.type === "JOBSWIPE_OFFER_DATA") {
+              console.log("Réponse de l'extension reçue :", event.data);
+              window.removeEventListener("message", handler);
+              const offerData = event.data.payload;
+              
+              if (!offerData) {
+                  console.warn("Aucune donnée d'offre reçue de l'extension.");
+                  toast({ variant: "destructive", description: "Aucune offre scannée trouvée dans l'extension." });
+                  return;
+              }
+              
+              console.log("Données de l'offre à importer :", offerData);
+              
+              try {
+                  setLoading(true);
+                  toast({ description: "Analyse de l'offre importée..." });
+                  
+                  // 1. Parser l'offre via le backend
+                  const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+                  console.log(`Appel du backend pour parsing : ${apiUrl}/parse-job`);
+                  const res = await fetch(`${apiUrl}/parse-job`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ text: offerData.description })
+                  });
+                  
+                  if (!res.ok) {
+                      if (res.status === 404) {
+                          throw new Error("Le serveur backend ne connaît pas la route /parse-job. Veuillez le redémarrer pour prendre en compte les modifications.");
+                      }
+                      throw new Error(`Erreur API (${res.status}): ${await res.text()}`);
+                  }
+                  const parsedJob = await res.json();
+                  console.log("Offre parsée par le backend :", parsedJob);
+                  
+                  // 2. Créer le job dans Supabase
+                  console.log("Insertion de l'offre dans Supabase...");
+                  
+                  // On prépare la description et on l'ajoute au JSON raw pour être sûr de la conserver
+                  const descriptionContent = parsedJob.missions?.join('\n') || offerData.description;
+                  const rawData = { 
+                    ...parsedJob, 
+                    description: descriptionContent,
+                    source: "extension_import" 
+                  };
+
+                  const { data: jobData, error: jobError } = await (supabase as any)
+                      .from("jobs")
+                      .insert({
+                          title: parsedJob.title || offerData.title,
+                          company: parsedJob.company_name || offerData.company || "Entreprise inconnue",
+                          location: parsedJob.location || "Non spécifié",
+                          contract_type: parsedJob.contract_type,
+                          // description: descriptionContent, // Retiré pour éviter l'erreur PGRST204 si la colonne n'existe pas
+                          raw: rawData,
+                          redirect_url: offerData.url,
+                          // source: "extension_import" // Retiré pour éviter l'erreur PGRST204
+                      })
+                      .select()
+                      .single();
+                      
+                  if (jobError) throw jobError;
+                  console.log("Offre insérée avec succès :", jobData);
+                  
+                  // 3. Liker l'offre
+                  console.log("Ajout du like pour l'offre...");
+                  await saveSwipeToSupabase("like", jobData.id, false);
+                  
+                  toast({ description: "Offre importée et ajoutée aux likes !" });
+                  
+                  // Recharger les likes si on est sur l'onglet liked
+                  setActiveTab("liked");
+                  loadLikedJobs();
+                  
+              } catch (e) {
+                  console.error("Erreur lors de l'importation :", e);
+                  toast({ variant: "destructive", description: "Erreur lors de l'importation de l'offre." });
+              } finally {
+                  setLoading(false);
+              }
+          }
+      };
+      
+      window.addEventListener("message", handler);
+      // Timeout de sécurité
+      setTimeout(() => window.removeEventListener("message", handler), 5000);
+  };
+
   const formatSalary = (job: Job) => {
     if (job.salary_min && job.salary_max) {
       return `${job.salary_min}€ - ${job.salary_max}€`;
@@ -831,6 +930,14 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
               }`}
             >
               Superlikes
+            </button>
+            <button
+              onClick={handleImportOffer}
+              className="px-4 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ease-out bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:scale-105 cursor-pointer flex items-center gap-2"
+              title="Importer la dernière offre scannée par l'extension"
+            >
+              <Download className="w-4 h-4" />
+              Importer
             </button>
           </div>
 

@@ -107,6 +107,11 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
     match = re.search(r"\{.*\}", output, flags=re.DOTALL)
     if match:
         json_str = match.group(0)
+    start = output.find("{")
+    end = output.rfind("}")
+    
+    if start != -1 and end != -1 and end > start:
+        json_str = output[start : end + 1]
     else:
         json_str = output
 
@@ -121,10 +126,13 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
         json_str = re.sub(r",\s*([\]}])", r"\1", json_str)
         # 3. Ajout des virgules manquantes entre un bloc fermant et une clé suivante
         json_str = re.sub(r"([\}\]])\s*(\"[a-zA-Z0-9_]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"([\}\]])\s*(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
         # 4. Ajout des virgules manquantes après une valeur simple et une clé
         json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[a-zA-Z0-9_]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
         # 5. Ajout des virgules manquantes après une string et une clé
         json_str = re.sub(r"(\")\s+(\"[a-zA-Z0-9_]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"(\")\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
 
         try:
             return json.loads(json_str)
@@ -169,89 +177,93 @@ def pick_contact_info(cv_parsed: Dict[str, Any]) -> Dict[str, str]:
 # ============================================================================
 # 4. Prompt Gemini pour générer la lettre
 # ============================================================================
-def build_cover_letter_prompt(
+def build_header_prompt(
     offer_parsed: Dict[str, Any],
     cv_parsed: Dict[str, Any],
-    gender: str = "M",
+    city_hint: str,
+    date_hint: str,
     reference: Optional[str] = None,
-    city_override: Optional[str] = None,
-    date_override: Optional[str] = None,
 ) -> str:
-
     offer_json = json.dumps(offer_parsed, ensure_ascii=False, indent=2)
     cv_json = json.dumps(cv_parsed, ensure_ascii=False, indent=2)
-    contact = pick_contact_info(cv_parsed)
-
-    city_hint = city_override or contact["city"] or ""
-    date_hint = date_override or french_date()
-    full_name = contact["full_name"]
-    gender_label = "masculin" if gender.upper() == "M" else "féminin"
 
     return f"""
-You are an expert French cover letter writer.
+You are an expert French administrative assistant.
+Your task is to prepare the HEADER and METADATA for a professional cover letter.
 
-Goal:
-Write a highly personalized and professional French cover letter,
-TARGETING the given job offer.
-
-!!! IMPORTANT STRUCTURAL RULES !!!
-- The greeting “Madame, Monsieur” MUST be placed in a SEPARATE JSON FIELD called "greeting".
-- "para1" MUST NOT contain “Madame, Monsieur”.
-  Example:
-    "greeting": "Madame, Monsieur",
-    "para1": "Je vous écris afin d’exprimer ma motivation..."
-
-You MUST return STRICTLY a JSON with EXACTLY the fields below:
-
+You MUST return STRICTLY a JSON object with this exact structure:
 {{
   "header_blocks": {{
-    "fullname_block": string,
-    "location_block": string,
-    "email_block": string,
-    "phone_block": string,
-    "websites_block": string
+    "fullname_block": "Candidate Full Name",
+    "location_block": "Candidate Address/City",
+    "email_block": "Candidate Email",
+    "phone_block": "Candidate Phone",
+    "websites_block": "Candidate Links (LinkedIn, Portfolio...)"
   }},
   "company_blocks": {{
-    "contact_block": string,
-    "company_name_block": string,
-    "company_address_block": string
+    "contact_block": "Recruiter Name (if known) or empty",
+    "company_name_block": "Company Name",
+    "company_address_block": "Company Address (if known) or City"
   }},
-  "place_date_line": string,
-  "objet_line": string,
-  "greeting": string,               // MUST be only “Madame, Monsieur”
-  "para1": string,                  // NO greeting here
-  "para2": string,
-  "para3": string,
-  "para4": string,
-  "signature": string
+  "place_date_line": "Fait à [City], le [Date]",
+  "objet_line": "Objet : Candidature pour le poste de [Job Title] [Reference]"
 }}
 
-Guidelines:
-- Entire letter MUST be in French.
-- Personalize and adapt to the missions, technologies, skills and requirements of the offer.
+Instructions:
 - Use the candidate's real information from the CV JSON.
-- The candidate's gender is {gender_label} → adapt adjectives (motivé(e), intéressé(e), etc.).
-- STRICT FIDELITY: Do NOT invent any experience, skill, or fact about the candidate. Use ONLY what is in the "CANDIDATE PROFILE" JSON. If the candidate lacks a specific skill required by the offer, do NOT claim they have it.
+- Use the company's info from the Job Offer.
+- Format 'place_date_line' using the city: "{city_hint}" and date: "{date_hint}".
+- If a reference is provided ("{reference if reference else ''}"), include it in the object line.
 
-Hints:
-- Suggested city: {city_hint}
-- Suggested date: {date_hint}
-- Suggested reference: {reference if reference else "none"}
-  
-====================
-JOB OFFER (parsed JSON)
-====================
+JOB OFFER:
 {offer_json}
 
-====================
-CANDIDATE PROFILE (parsed CV JSON)
-====================
+CANDIDATE CV:
 {cv_json}
-
-Return ONLY the JSON object — no markdown, no comments, no explanation.
 """
 
 
+def build_body_prompt(
+    offer_parsed: Dict[str, Any],
+    cv_parsed: Dict[str, Any],
+    gender_label: str,
+    objet_line: str
+) -> str:
+    offer_json = json.dumps(offer_parsed, ensure_ascii=False, indent=2)
+    cv_json = json.dumps(cv_parsed, ensure_ascii=False, indent=2)
+
+    return f"""
+You are an expert French copywriter specialized in cover letters.
+Your task is to write the BODY of the letter.
+
+Context:
+- Candidate Gender: {gender_label}
+- Letter Object: "{objet_line}"
+
+You MUST return STRICTLY a JSON object with this exact structure:
+{{
+  "greeting": "Madame, Monsieur,",
+  "para1": "Introduction paragraph (Hook)...",
+  "para2": "Why me (Skills & Experience)...",
+  "para3": "Why you (Company alignment)...",
+  "para4": "Call to action (Interview request)...",
+  "signature": "Candidate Name"
+}}
+
+Instructions:
+- Write in professional French.
+- "para1" MUST NOT contain the greeting.
+- Adapt to the specific job offer (missions, technologies, skills).
+- Use the candidate's real information from the CV.
+- STRICT FIDELITY: Do NOT invent any experience or skill. Use ONLY what is in the CV.
+- Be convincing but factual.
+
+JOB OFFER:
+{offer_json}
+
+CANDIDATE CV:
+{cv_json}
+"""
 
 def generate_letter_structure_with_gemini(
     offer_parsed: Dict[str, Any],
@@ -261,66 +273,27 @@ def generate_letter_structure_with_gemini(
     city_override: Optional[str] = None,
     date_override: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Appelle Gemini pour obtenir une lettre structurée avec le schéma :
+    # 1. Préparation des indices
+    contact = pick_contact_info(cv_parsed)
+    city_hint = city_override or contact["city"] or "Paris"
+    date_hint = date_override or french_date()
+    gender_label = "masculin" if gender.upper() == "M" else "féminin"
 
-    {
-      "header_blocks": {
-        "fullname_block": ...,
-        "location_block": ...,
-        "email_block": ...,
-        "phone_block": ...,
-        "websites_block": ...
-      },
-      "company_blocks": {
-        "contact_block": ...,
-        "company_name_block": ...,
-        "company_address_block": ...
-      },
-      "place_date_line": ...,
-      "objet_line": ...,
-      "greeting": ...,      # ex: "Madame, Monsieur"
-      "para1": ...,
-      "para2": ...,
-      "para3": ...,
-      "para4": ...,
-      "signature": ...
-    }
-    """
-    prompt = build_cover_letter_prompt(
-        offer_parsed=offer_parsed,
-        cv_parsed=cv_parsed,
-        gender=gender,
-        reference=reference,
-        city_override=city_override,
-        date_override=date_override,
-    )
+    # 2. Appel 1 : Header & Meta
+    prompt_header = build_header_prompt(offer_parsed, cv_parsed, city_hint, date_hint, reference)
+    resp_header = _gemini_model.generate_content(prompt_header)
+    json_header = extract_json_from_output(resp_header.text)
 
-    response = _gemini_model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
-            temperature=0.5,
-            max_output_tokens=2048,
-        ),
-    )
+    # Récupération de l'objet pour le contexte du body
+    objet_line = json_header.get("objet_line", "")
 
-    # Récupération du texte brut
-    try:
-        raw_text = response.text
-    except AttributeError:
-        if hasattr(response, "candidates") and response.candidates:
-            parts = []
-            for cand in response.candidates:
-                if not cand.content:
-                    continue
-                for p in cand.content.parts:
-                    if getattr(p, "text", None):
-                        parts.append(p.text)
-            raw_text = "\n".join(parts)
-        else:
-            raise RuntimeError(f"Réponse Gemini inattendue : {response!r}")
+    # 3. Appel 2 : Body
+    prompt_body = build_body_prompt(offer_parsed, cv_parsed, gender_label, objet_line)
+    resp_body = _gemini_model.generate_content(prompt_body)
+    json_body = extract_json_from_output(resp_body.text)
 
-    letter_json = extract_json_from_output(raw_text)
+    # 4. Fusion
+    full_json = {**json_header, **json_body}
 
     # Helpers pour sécuriser les champs
     def norm(s: Any) -> str:
@@ -328,8 +301,8 @@ def generate_letter_structure_with_gemini(
             s = "" if s is None else str(s)
         return normalize_str(s)
 
-    header_blocks_raw = letter_json.get("header_blocks") or {}
-    company_blocks_raw = letter_json.get("company_blocks") or {}
+    header_blocks_raw = full_json.get("header_blocks") or {}
+    company_blocks_raw = full_json.get("company_blocks") or {}
 
     header_blocks = {
         "fullname_block": norm(header_blocks_raw.get("fullname_block", "")),
@@ -348,14 +321,14 @@ def generate_letter_structure_with_gemini(
     return {
         "header_blocks": header_blocks,
         "company_blocks": company_blocks,
-        "place_date_line": norm(letter_json.get("place_date_line", "")),
-        "objet_line": norm(letter_json.get("objet_line", "")),
-        "greeting": norm(letter_json.get("greeting", "")),
-        "para1": norm(letter_json.get("para1", "")),
-        "para2": norm(letter_json.get("para2", "")),
-        "para3": norm(letter_json.get("para3", "")),
-        "para4": norm(letter_json.get("para4", "")),
-        "signature": norm(letter_json.get("signature", "")),
+        "place_date_line": norm(full_json.get("place_date_line", "")),
+        "objet_line": norm(full_json.get("objet_line", "")),
+        "greeting": norm(full_json.get("greeting", "")),
+        "para1": norm(full_json.get("para1", "")),
+        "para2": norm(full_json.get("para2", "")),
+        "para3": norm(full_json.get("para3", "")),
+        "para4": norm(full_json.get("para4", "")),
+        "signature": norm(full_json.get("signature", "")),
     }
 
 
@@ -372,6 +345,8 @@ def build_cover_letter_html_from_chunks(chunks: Dict[str, Any]) -> str:
 
     header = chunks.get("header_blocks", {}) or {}
     company = chunks.get("company_blocks", {}) or {}
+    header = chunks.get("header_blocks") or {}
+    company = chunks.get("company_blocks") or {}
 
     css = """
     @page { size: a4 portrait; margin: 2.5cm; }
@@ -552,7 +527,7 @@ def generate_personalized_cover_letter_docx_and_pdf(
     reference: Optional[str] = None,
     city_override: Optional[str] = None,
     date_override: Optional[str] = None,
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """
     Pipeline complet :
       1. Gemini génère une lettre structurée (JSON).
@@ -562,7 +537,8 @@ def generate_personalized_cover_letter_docx_and_pdf(
     Retourne:
       {
         "docx_path": "...",
-        "pdf_path": "..."
+        "pdf_path": "...",
+        "chunks": {...}  # Contenu structuré pour le frontend
       }
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -592,6 +568,7 @@ def generate_personalized_cover_letter_docx_and_pdf(
     return {
         "docx_path": docx_path,
         "pdf_path": pdf_path,
+        "chunks": chunks,
     }
 
 

@@ -45,7 +45,9 @@ def _extract_json(output: str) -> Dict[str, Any]:
         # Réparation basique du JSON
         json_str = re.sub(r"(?<!:)\/\/.*", "", json_str) # Commentaires
         json_str = re.sub(r",\s*([\]}])", r"\1", json_str) # Virgules en trop
-        json_str = re.sub(r"([\}\]])\s*(\"[a-zA-Z0-9_]+\"\s*:)", r"\1,\2", json_str) # Virgules manquantes
+        json_str = re.sub(r"([\}\]])\s*(\"[^\"]+\"\s*:)", r"\1,\2", json_str) # Virgules manquantes
+        json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"(\")\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
         return json.loads(json_str)
 
 # ============================================================================

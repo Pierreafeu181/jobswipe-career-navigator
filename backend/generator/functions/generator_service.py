@@ -100,6 +100,9 @@ class JobSwipeGeneratorService:
             elif "github" in url.lower() or "github" in platform:
                 contact_info["github"] = url
 
+        # Injection des infos de contact pour le frontend
+        generated_content["contact_info"] = contact_info
+
         html_cv = generate_cv_html(full_cv_content, contact_info)
         
         cv_base_name = f"cv_optimized_{uuid.uuid4().hex}"
@@ -131,7 +134,7 @@ class JobSwipeGeneratorService:
         results['offer_parsed'] = offer_parsed
 
         # 2. Génération Lettre de Motivation
-        cl_paths = generate_personalized_cover_letter_docx_and_pdf(
+        cl_result = generate_personalized_cover_letter_docx_and_pdf(
             offer_parsed=offer_parsed,
             cv_parsed=cv_parsed,
             output_dir=self.output_dir,
@@ -139,9 +142,10 @@ class JobSwipeGeneratorService:
             gender=gender
         )
         results['paths'] = {
-            'cl_docx': cl_paths['docx_path'],
-            'cl_pdf': cl_paths['pdf_path']
+            'cl_docx': cl_result['docx_path'],
+            'cl_pdf': cl_result['pdf_path']
         }
+        results['generated_content'] = cl_result['chunks']
         return results
 
     def process_scoring(
@@ -164,3 +168,9 @@ class JobSwipeGeneratorService:
         Calcule un score heuristique rapide (0-100) pour l'affichage liste.
         """
         return compute_heuristic_score(offer_data, cv_data)
+
+    def parse_only_offer(self, offer_text: str) -> Dict[str, Any]:
+        """
+        Parse uniquement le texte d'une offre d'emploi.
+        """
+        return parse_job_offer_gemini(offer_text)

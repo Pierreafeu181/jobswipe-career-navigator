@@ -9,7 +9,8 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "unlimitedStorage"
   ],
   "content_scripts": [
     {

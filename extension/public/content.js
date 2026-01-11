@@ -68,6 +68,9 @@ const getFieldType = (field) => {
     // --- Text Inputs & Textareas ---
     if (attributes.includes('email') || attributes.includes('mail') || field.type === 'email') return 'email';
     if (attributes.includes('phone') || attributes.includes('tel') || attributes.includes('mobile') || attributes.includes('portable')) return 'phone';
+    if (attributes.includes('city') || attributes.includes('ville') || attributes.includes('location') || attributes.includes('adresse')) return 'city';
+    if (attributes.includes('gender') || attributes.includes('genre') || attributes.includes('sexe') || attributes.includes('civilite')) return 'gender';
+    if (attributes.includes('handicap') || attributes.includes('disability') || attributes.includes('rqth')) return 'handicap';
     if ((attributes.includes('first') && attributes.includes('name')) || attributes.includes('prenom')) return 'firstname';
     if ((attributes.includes('last') && attributes.includes('name')) || attributes.includes('nom') || attributes.includes('surname')) return 'lastname';
     if (attributes.includes('linkedin')) return 'linkedin';
@@ -252,6 +255,9 @@ const findAndFill = async (data) => {
     switch (type) {
         case 'email': valueToInject = data.identity.email; break;
         case 'phone': valueToInject = data.identity.phone; break;
+        case 'city': valueToInject = data.identity.city; break;
+        case 'gender': valueToInject = data.identity.gender; break;
+        case 'handicap': valueToInject = data.identity.handicap; break;
         case 'firstname': valueToInject = data.identity.firstname; break;
         case 'lastname': valueToInject = data.identity.lastname; break;
         case 'linkedin': valueToInject = data.links.linkedin; break;
@@ -287,6 +293,16 @@ const findAndFill = async (data) => {
   return filledCount;
 };
 
+const scanJobOffer = () => {
+    const title = document.querySelector('h1')?.innerText || document.title;
+    // Nettoyage basique du texte pour éviter d'envoyer trop de bruit
+    const description = document.body.innerText.replace(/\s+/g, ' ').substring(0, 10000); 
+    const url = window.location.href;
+    const company = document.querySelector('meta[property="og:site_name"]')?.content || "";
+    
+    return { title, description, url, company };
+};
+
 // Écouteur de messages venant du Popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "fill_form") {
@@ -318,6 +334,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "execute_ai_plan") {
     executeAIPlan(request.plan, request.userData).then(c => sendResponse({ count: c }));
     return true;
+  }
+
+  if (request.action === "scan_job_offer") {
+      const data = scanJobOffer();
+      sendResponse({ data });
+      return false;
+  }
+});
+
+// Écouteur pour les messages venant de la page web (Site JobSwipe)
+// Permet au site d'injecter des données dans l'extension via window.postMessage
+window.addEventListener("message", (event) => {
+  // Sécurité : on vérifie que le message vient de la même fenêtre
+  if (event.source !== window) return;
+
+  if (event.data && event.data.type === "JOBSWIPE_SYNC_PROFILE") {
+    try {
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ jobswipe_user_data: event.data.payload }, () => {
+          if (chrome.runtime.lastError) {
+            console.error("JobSwipe Extension Storage Error:", chrome.runtime.lastError.message);
+          } else {
+            console.log("JobSwipe Extension: Profil et Documents (PDF) synchronisés avec succès.");
+          }
+        });
+      } else {
+        console.warn("JobSwipe Extension: chrome.storage.local non disponible. Rechargez la page ou l'extension.");
+      }
+    } catch (e) {
+      console.error("JobSwipe Extension Exception:", e);
+    }
+  }
+
+  if (event.data && event.data.type === "JOBSWIPE_REQUEST_OFFER") {
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.get(['scanned_job_offer'], (result) => {
+              if (result.scanned_job_offer) {
+                  window.postMessage({
+                      type: "JOBSWIPE_OFFER_DATA",
+                      payload: result.scanned_job_offer
+                  }, "*");
+              } else {
+                  console.warn("JobSwipe: Aucune offre scannée trouvée.");
+                  window.postMessage({ type: "JOBSWIPE_OFFER_DATA", payload: null }, "*");
+              }
+          });
+      }
   }
 });
 

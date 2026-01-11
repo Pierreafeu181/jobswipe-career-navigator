@@ -143,6 +143,9 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
         # Réparation basique
         json_str = re.sub(r"(?<!:)\/\/.*", "", json_str)
         json_str = re.sub(r",\s*([\]}])", r"\1", json_str)
+        json_str = re.sub(r"([\}\]])\s*(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"(\")\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
         return json.loads(json_str)
 
 
@@ -172,6 +175,7 @@ def parse_job_offer_gemini(offer_text: str) -> Dict[str, Any]:
     prompt = build_parsing_prompt(offer_text, language)
     raw_output = generate_with_gemini(prompt)
     parsed_json = extract_json_from_output(raw_output)
+    print(parsed_json)
     return parsed_json
 
 

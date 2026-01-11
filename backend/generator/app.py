@@ -34,6 +34,9 @@ class ApplicationRequest(BaseModel):
     offer_data: Dict[str, Any]
     gender: str = "M"  # "M" pour masculin, "F" pour féminin
 
+class JobTextRequest(BaseModel):
+    text: str
+
 @app.post("/generate-cv")
 async def generate_cv(request: ApplicationRequest):
     """
@@ -47,6 +50,9 @@ async def generate_cv(request: ApplicationRequest):
         if "cv_pdf" in results.get("paths", {}):
             with open(results["paths"]["cv_pdf"], "rb") as f:
                 response_data["files"]["cv_pdf"] = base64.b64encode(f.read()).decode("utf-8")
+
+        # Ajout du contenu structuré pour l'affichage frontend
+        response_data["content"] = results.get("generated_content", {})
 
         return response_data
     except Exception as e:
@@ -67,6 +73,9 @@ async def generate_cover_letter(request: ApplicationRequest):
         if "cl_pdf" in results.get("paths", {}):
             with open(results["paths"]["cl_pdf"], "rb") as f:
                 response_data["files"]["cl_pdf"] = base64.b64encode(f.read()).decode("utf-8")
+        
+        # Ajout du contenu structuré pour l'affichage frontend
+        response_data["content"] = results.get("generated_content", {})
 
         return response_data
     except Exception as e:
@@ -98,6 +107,17 @@ async def score_fast(request: ApplicationRequest):
         return {"score": score}
     except Exception as e:
         print(f"ERREUR 500 dans /score-fast : {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/parse-job")
+async def parse_job(request: JobTextRequest):
+    """
+    Parse un texte d'offre d'emploi brut en JSON structuré.
+    """
+    try:
+        result = service.parse_only_offer(request.text)
+        return result
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
