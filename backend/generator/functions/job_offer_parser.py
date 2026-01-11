@@ -96,7 +96,8 @@ with EXACTLY these names:
   "soft_skills": string[],           // Interpersonal / behavioral skills (e.g., "teamwork", "communication")
   "missions": string[],              // Short sentences describing responsibilities
   "requirements": string[],          // Short sentences focusing on years of experience required (e.g., "3+ years in data analysis")
-  "keywords": string[]     // Most relevant, high-signal terms appearing in the job offer
+  "keywords": string[],    // Most relevant, high-signal terms appearing in the job offer
+  "salary": string | null, // Salary range or amount if specified (e.g. "40k-50k", "500€/day"), null otherwise
   "language": "fr" | "en"             // The language of the job posting (French or English)
 }}
 
@@ -143,6 +144,9 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
         # Réparation basique
         json_str = re.sub(r"(?<!:)\/\/.*", "", json_str)
         json_str = re.sub(r",\s*([\]}])", r"\1", json_str)
+        json_str = re.sub(r"([\}\]])\s*(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"(\")\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
         return json.loads(json_str)
 
 
@@ -172,6 +176,11 @@ def parse_job_offer_gemini(offer_text: str) -> Dict[str, Any]:
     prompt = build_parsing_prompt(offer_text, language)
     raw_output = generate_with_gemini(prompt)
     parsed_json = extract_json_from_output(raw_output)
+
+    # Ajout de la description originale pour référence
+    parsed_json["description"] = offer_text
+
+    print(parsed_json)
     return parsed_json
 
 

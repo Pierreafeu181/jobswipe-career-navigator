@@ -1,9 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { loadProfile } from "@/lib/storage";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Download } from "lucide-react";
 
 const CV = () => {
   const navigate = useNavigate();
@@ -11,10 +10,10 @@ const CV = () => {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-slate-50">
         <LogoHeader />
         <div className="px-6 py-8 max-w-2xl mx-auto text-center">
-          <p className="text-muted-foreground mb-4">Veuillez d'abord compléter votre profil</p>
+          <p className="text-slate-600 mb-4">Veuillez d'abord compléter votre profil</p>
           <PrimaryButton onClick={() => navigate("/profil")}>
             Aller au profil
           </PrimaryButton>
@@ -24,51 +23,77 @@ const CV = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-100/50 pb-12">
       <LogoHeader />
       
-      <div className="px-6 py-8 max-w-2xl mx-auto">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">CV généré</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="bg-muted/30 rounded-lg p-6 space-y-4">
-              <div className="text-center pb-4 border-b border-border">
-                <h2 className="text-2xl font-bold text-foreground">
-                  {profile.firstName} {profile.lastName}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">{profile.contact}</p>
-              </div>
-
-              {profile.formations && (
-                <div>
-                  <h3 className="font-bold text-lg text-foreground mb-2">Formations</h3>
-                  <p className="text-sm text-foreground whitespace-pre-line">{profile.formations}</p>
+      <div className="px-4 py-8 flex justify-center">
+        <div className="w-full max-w-[21cm] bg-white shadow-2xl min-h-[29.7cm] p-[2.5cm] text-slate-800 text-sm leading-normal font-sans animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <div className="border-b-2 border-slate-800 pb-6 mb-8">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h1 className="text-4xl font-bold text-slate-900 uppercase tracking-tight mb-2">
+                            {profile.firstName} {profile.lastName}
+                        </h1>
+                    </div>
+                    <div className="text-right text-xs text-slate-600 space-y-1 max-w-[250px]">
+                        <div className="whitespace-pre-line">{profile.contact}</div>
+                    </div>
                 </div>
-              )}
-
-              {profile.experiences && (
-                <div>
-                  <h3 className="font-bold text-lg text-foreground mb-2">Expériences</h3>
-                  <p className="text-sm text-foreground whitespace-pre-line">{profile.experiences}</p>
-                </div>
-              )}
-
-              {profile.competences && (
-                <div>
-                  <h3 className="font-bold text-lg text-foreground mb-2">Compétences</h3>
-                  <p className="text-sm text-foreground whitespace-pre-line">{profile.competences}</p>
-                </div>
-              )}
             </div>
 
-            <PrimaryButton onClick={() => navigate("/offres")}>
-              Suivant
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </PrimaryButton>
-          </CardContent>
-        </Card>
+            <div className="grid grid-cols-1 gap-8">
+                {/* Expériences */}
+                {profile.experiences && (
+                    <section>
+                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
+                            Expériences Professionnelles
+                        </h3>
+                        <div className="whitespace-pre-line text-slate-700 leading-relaxed text-justify">
+                            {profile.experiences}
+                        </div>
+                    </section>
+                )}
+
+                {/* Formations */}
+                {profile.formations && (
+                    <section>
+                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
+                            Formation
+                        </h3>
+                        <div className="whitespace-pre-line text-slate-700 leading-relaxed text-justify">
+                            {profile.formations}
+                        </div>
+                    </section>
+                )}
+
+                {/* Compétences */}
+                {profile.competences && (
+                    <section>
+                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
+                            Compétences
+                        </h3>
+                        <div className="whitespace-pre-line text-slate-700 leading-relaxed text-justify">
+                            {profile.competences}
+                        </div>
+                    </section>
+                )}
+            </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-8 right-8 flex gap-4">
+        <PrimaryButton onClick={() => window.print()} className="shadow-xl bg-slate-800 hover:bg-slate-700 w-auto px-6">
+            <Download className="w-5 h-5 mr-2" />
+            Imprimer / PDF
+        </PrimaryButton>
+        <PrimaryButton onClick={() => navigate("/jobswipe/offres")} className="shadow-xl w-auto px-6">
+            Suivant
+            <ArrowRight className="w-5 h-5 ml-2" />
+        </PrimaryButton>
       </div>
     </div>
   );

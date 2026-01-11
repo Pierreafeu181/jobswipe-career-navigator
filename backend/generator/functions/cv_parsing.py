@@ -67,6 +67,9 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
         # Réparation basique
         json_str = re.sub(r"(?<!:)\/\/.*", "", json_str)
         json_str = re.sub(r",\s*([\]}])", r"\1", json_str)
+        json_str = re.sub(r"([\}\]])\s*(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"(\")\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
         return json.loads(json_str)
 
 

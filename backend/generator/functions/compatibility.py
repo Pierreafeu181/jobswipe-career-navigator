@@ -74,15 +74,15 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
         
         # 3. Ajout des virgules manquantes entre un bloc fermant et une clé suivante
         # Ex: } "summary": -> }, "summary":
-        json_str = re.sub(r"([\}\]])\s*(\"[a-zA-Z0-9_]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"([\}\]])\s*(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
 
         # 4. Ajout des virgules manquantes après une valeur simple (nombre, bool, null) et une clé
         # Ex: 10 "scores": -> 10, "scores":
-        json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[a-zA-Z0-9_]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
         
         # 5. Ajout des virgules manquantes après une string et une clé
         # Ex: "val" "key": -> "val", "key":
-        json_str = re.sub(r"(\")\s+(\"[a-zA-Z0-9_]+\"\s*:)", r"\1,\2", json_str)
+        json_str = re.sub(r"(\")\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
 
         # 6. Nettoyage des pourcentages ou fractions dans les valeurs numériques (ex: 20% -> 20)
         # Gemini a tendance à mettre "match": 20%

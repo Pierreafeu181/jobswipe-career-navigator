@@ -11,8 +11,9 @@ import { addFavorite, removeFavorite, isFavorite } from "@/lib/storage";
 import { downloadFile } from "@/lib/utils";
 import { Job, UserProfile } from "@/types/job";
 import { Profile } from "@/types/profile";
-import { Loader2, ExternalLink, FileText, TrendingUp, Heart, Mail, Sparkles, PenTool, ArrowLeft, Home } from "lucide-react";
+import { Loader2, ExternalLink, FileText, TrendingUp, Heart, Mail, Sparkles, PenTool, ArrowLeft, Home, Puzzle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { GeneratedDocumentView } from "@/components/GeneratedDocumentView";
 
 const OffreDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +27,12 @@ const OffreDetail = () => {
   const [generatingCV, setGeneratingCV] = useState(false);
   const [generatingCL, setGeneratingCL] = useState(false);
   const [score, setScore] = useState<number | null>(null);
+  const [generatedDocs, setGeneratedDocs] = useState<{
+    cv?: { pdf: string; content: any };
+    cl?: { pdf: string; content: any };
+  } | null>(null);
+  const [initialTab, setInitialTab] = useState<'cv' | 'cl'>('cv');
+  const [showDocuments, setShowDocuments] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -99,6 +106,20 @@ const OffreDetail = () => {
     }
   }, [id]);
 
+  // Chargement des documents générés depuis le localStorage
+  useEffect(() => {
+    if (id) {
+      const savedDocs = localStorage.getItem(`jobswipe_docs_${id}`);
+      if (savedDocs) {
+        try {
+          setGeneratedDocs(JSON.parse(savedDocs));
+        } catch (e) {
+          console.error("Erreur lors du chargement des documents sauvegardés", e);
+        }
+      }
+    }
+  }, [id]);
+
   const loadJob = async (jobId: string) => {
     try {
       const data = await fetchJobById(jobId);
@@ -127,7 +148,7 @@ const OffreDetail = () => {
     return {
       first_name: profile.first_name,
       last_name: profile.last_name,
-      full_name: `${profile.first_name} ${profile.last_name}`,
+      full_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Candidat",
       contacts: {
         emails: [profile.email],
         phones: [profile.phone],
@@ -238,42 +259,76 @@ const OffreDetail = () => {
     setGenerating(true);
     toast({ description: "Démarrage du Pack Candidature IA..." });
 
+    // Vérifier si des documents existent déjà dans le localStorage
+    let existingDocs: { cv?: any, cl?: any } = {};
+    if (id) {
+      const saved = localStorage.getItem(`jobswipe_docs_${id}`);
+      if (saved) {
+        try {
+          existingDocs = JSON.parse(saved);
+        } catch (e) {
+          console.error("Erreur parsing localStorage", e);
+        }
+      }
+    }
+
+    // Si le pack complet existe déjà, on l'affiche directement
+    if (existingDocs.cv && existingDocs.cl) {
+      setInitialTab('cv');
+      setGeneratedDocs(existingDocs);
+      setShowDocuments(true);
+      setGenerating(false);
+      return;
+    }
+
     try {
       const cvData = formatProfileForBackend(userProfile);
       const offerData = formatJobForBackend(job);
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-      // --- ÉTAPE 1 : CV ---
-      toast({ description: "1/2 Génération du CV optimisé..." });
-      const resCV = await fetch(`${API_URL}/generate-cv`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
-      });
+      let cvResult = existingDocs.cv;
+      let clResult = existingDocs.cl;
 
-      if (!resCV.ok) throw new Error("Erreur lors de la génération du CV");
-      const dataCV = await resCV.json();
+      // --- ÉTAPE 1 : CV (si pas déjà généré) ---
+      if (!cvResult) {
+        toast({ description: "1/2 Génération du CV optimisé..." });
+        const resCV = await fetch(`${API_URL}/generate-cv`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
+        });
 
-      if (dataCV.files?.cv_pdf) {
-        downloadBase64Pdf(`CV_Optimise_${job.company}.pdf`, dataCV.files.cv_pdf);
+        if (!resCV.ok) throw new Error("Erreur lors de la génération du CV");
+        const dataCV = await resCV.json();
+        
+        cvResult = dataCV.files?.cv_pdf ? { pdf: dataCV.files.cv_pdf, content: dataCV.content } : undefined;
       }
 
-      // --- ÉTAPE 2 : Lettre de motivation ---
-      toast({ description: "2/2 Génération de la lettre de motivation..." });
-      const resCL = await fetch(`${API_URL}/generate-cover-letter`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
-      });
+      // --- ÉTAPE 2 : Lettre de motivation (si pas déjà générée) ---
+      if (!clResult) {
+        toast({ description: "2/2 Génération de la lettre de motivation..." });
+        const resCL = await fetch(`${API_URL}/generate-cover-letter`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
+        });
 
-      if (!resCL.ok) throw new Error("Erreur lors de la génération de la lettre");
-      const dataCL = await resCL.json();
-
-      if (dataCL.files?.cl_pdf) {
-        downloadBase64Pdf(`Lettre_Motivation_${job.company}.pdf`, dataCL.files.cl_pdf);
+        if (!resCL.ok) throw new Error("Erreur lors de la génération de la lettre");
+        const dataCL = await resCL.json();
+        
+        clResult = dataCL.files?.cl_pdf ? { pdf: dataCL.files.cl_pdf, content: dataCL.content } : undefined;
       }
 
-      toast({ description: "Pack Candidature complet téléchargé !" });
+      const newDocs = {
+        cv: cvResult,
+        cl: clResult
+      };
+
+      setInitialTab('cv');
+      setGeneratedDocs(newDocs);
+      setShowDocuments(true);
+      localStorage.setItem(`jobswipe_docs_${id}`, JSON.stringify(newDocs));
+      toast({ description: "Pack Candidature généré !" });
     } catch (error) {
       console.error(error);
       toast({ variant: "destructive", description: error instanceof Error ? error.message : "Erreur technique" });
@@ -285,6 +340,21 @@ const OffreDetail = () => {
   const handleGenerateCV = async () => {
     if (!job || !userProfile) {
       toast({ variant: "destructive", description: "Profil ou offre manquant" });
+      return;
+    }
+
+    // Vérifier si le CV existe déjà dans le localStorage
+    let existingDocs: { cv?: any, cl?: any } = {};
+    if (id) {
+      const saved = localStorage.getItem(`jobswipe_docs_${id}`);
+      if (saved) {
+        try { existingDocs = JSON.parse(saved); } catch (e) {}
+      }
+    }
+    if (existingDocs.cv) {
+      setInitialTab('cv');
+      setGeneratedDocs(existingDocs);
+      setShowDocuments(true);
       return;
     }
 
@@ -310,8 +380,15 @@ const OffreDetail = () => {
       const data = await response.json();
 
       if (data.files?.cv_pdf) {
-        downloadBase64Pdf(`CV_Optimise_${job.company}.pdf`, data.files.cv_pdf);
-        toast({ description: "CV généré et téléchargé avec succès !" });
+        const newDocs = {
+          cv: { pdf: data.files.cv_pdf, content: data.content },
+          cl: existingDocs.cl // Conserver la lettre si elle existe
+        };
+        setInitialTab('cv');
+        setShowDocuments(true);
+        setGeneratedDocs(newDocs);
+        localStorage.setItem(`jobswipe_docs_${id}`, JSON.stringify(newDocs));
+        toast({ description: "CV généré avec succès !" });
       } else {
         throw new Error("Le fichier CV PDF n'a pas été retourné par l'API.");
       }
@@ -327,6 +404,21 @@ const OffreDetail = () => {
   const handleGenerateCoverLetter = async () => {
     if (!job || !userProfile) {
       toast({ variant: "destructive", description: "Profil ou offre manquant" });
+      return;
+    }
+
+    // Vérifier si la lettre existe déjà dans le localStorage
+    let existingDocs: { cv?: any, cl?: any } = {};
+    if (id) {
+      const saved = localStorage.getItem(`jobswipe_docs_${id}`);
+      if (saved) {
+        try { existingDocs = JSON.parse(saved); } catch (e) {}
+      }
+    }
+    if (existingDocs.cl) {
+      setInitialTab('cl');
+      setGeneratedDocs(existingDocs);
+      setShowDocuments(true);
       return;
     }
 
@@ -352,8 +444,15 @@ const OffreDetail = () => {
       const data = await response.json();
 
       if (data.files?.cl_pdf) {
-        downloadBase64Pdf(`Lettre_Motivation_${job.company}.pdf`, data.files.cl_pdf);
-        toast({ description: "Lettre de motivation générée et téléchargée avec succès !" });
+        const newDocs = {
+          cv: existingDocs.cv, // Conserver le CV s'il existe
+          cl: { pdf: data.files.cl_pdf, content: data.content }
+        };
+        setInitialTab('cl');
+        setShowDocuments(true);
+        setGeneratedDocs(newDocs);
+        localStorage.setItem(`jobswipe_docs_${id}`, JSON.stringify(newDocs));
+        toast({ description: "Lettre de motivation générée avec succès !" });
       } else {
         throw new Error("Le fichier de lettre de motivation PDF n'a pas été retourné par l'API.");
       }
@@ -364,6 +463,109 @@ const OffreDetail = () => {
     } finally {
       setGeneratingCL(false);
     }
+  };
+
+  const handleSyncWithExtension = () => {
+    if (!generatedDocs?.cv && !generatedDocs?.cl) {
+        toast({ variant: "destructive", description: "Veuillez d'abord générer les documents (CV ou Lettre) avant d'envoyer." });
+        return;
+    }
+
+    // Priorité aux infos du CV généré, sinon fallback sur le profil utilisateur
+    const cvContact = generatedDocs?.cv?.content?.contact_info;
+    
+    // Extraction intelligente du nom/prénom
+    let firstname = userProfile?.first_name || "";
+    let lastname = userProfile?.last_name || "";
+    
+    if (cvContact?.name && (!firstname || !lastname)) {
+        const parts = cvContact.name.trim().split(" ");
+        if (parts.length > 0) {
+             if (!firstname) firstname = parts[0];
+             if (!lastname) lastname = parts.slice(1).join(" ");
+        }
+    }
+
+    const identity = { 
+      firstname: firstname, 
+      lastname: lastname, 
+      email: cvContact?.email || userProfile?.email || "", 
+      phone: cvContact?.phone || userProfile?.phone || "",
+      city: cvContact?.city || userProfile?.city || "",
+      gender: "",
+      handicap: ""
+    };
+
+    const links = { 
+      linkedin: cvContact?.linkedin || userProfile?.linkedin || "", 
+      portfolio: "" 
+    };
+
+    const documents = { 
+      cv_base64: "", 
+      cv_name: "", 
+      cv_type: "", 
+      cover_letter_text: "", 
+      cover_letter_base64: "", 
+      cover_letter_name: "", 
+      cover_letter_type: "" 
+    };
+
+    // Préparation du CV PDF
+    if (generatedDocs?.cv?.pdf) {
+        const prefix = "data:application/pdf;base64,";
+        documents.cv_base64 = generatedDocs.cv.pdf.startsWith("data:") 
+            ? generatedDocs.cv.pdf 
+            : prefix + generatedDocs.cv.pdf;
+        documents.cv_name = `CV_${lastname || "Candidat"}.pdf`;
+        documents.cv_type = "application/pdf";
+    }
+
+    // Préparation de la Lettre de Motivation
+    if (generatedDocs?.cl) {
+        if (generatedDocs.cl.pdf) {
+            const prefix = "data:application/pdf;base64,";
+            documents.cover_letter_base64 = generatedDocs.cl.pdf.startsWith("data:") 
+                ? generatedDocs.cl.pdf 
+                : prefix + generatedDocs.cl.pdf;
+            documents.cover_letter_name = `Lettre_Motivation_${lastname || "Candidat"}.pdf`;
+            documents.cover_letter_type = "application/pdf";
+        }
+
+        // Texte brut pour remplissage automatique des champs texte
+        const content = generatedDocs.cl.content;
+        if (content) {
+            const textParts = [
+                content.greeting,
+                content.para1,
+                content.para2,
+                content.para3,
+                content.para4,
+                content.signature
+            ].filter(Boolean);
+            documents.cover_letter_text = textParts.join("\n\n");
+        }
+    }
+
+    const extensionData = {
+      identity,
+      links,
+      documents,
+      ai_responses: { 
+        why_us: "", 
+        salary_expectations: "" 
+      },
+      structured_cv: generatedDocs?.cv?.content || null
+    };
+
+    console.log("Données envoyées à l'extension :", extensionData);
+
+    window.postMessage({
+      type: "JOBSWIPE_SYNC_PROFILE",
+      payload: extensionData
+    }, "*");
+
+    toast({ description: "Données (CV, Lettre, Profil) envoyées à l'extension !" });
   };
 
   if (loading) {
@@ -385,6 +587,20 @@ const OffreDetail = () => {
           <p className="text-slate-600">Offre non trouvée</p>
         </div>
       </div>
+    );
+  }
+
+  if (showDocuments && generatedDocs && job) {
+    return (
+      <GeneratedDocumentView 
+        cvData={generatedDocs.cv}
+        clData={generatedDocs.cl}
+        onBack={() => setShowDocuments(false)}
+        jobTitle={job.title}
+        companyName={job.company}
+        userProfile={userProfile}
+        initialTab={initialTab}
+      />
     );
   }
 
@@ -505,23 +721,49 @@ const OffreDetail = () => {
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                <PrimaryButton
-                  onClick={handleGenerateCV}
-                  disabled={generatingCV || generating}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                >
-                  {generatingCV ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
-                  {generatingCV ? "Génération..." : "Générer CV"}
-                </PrimaryButton>
+                {generatedDocs?.cv ? (
+                  <PrimaryButton
+                    onClick={() => {
+                      setInitialTab('cv');
+                      setShowDocuments(true);
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Voir mon CV
+                  </PrimaryButton>
+                ) : (
+                  <PrimaryButton
+                    onClick={handleGenerateCV}
+                    disabled={generatingCV || generating}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  >
+                    {generatingCV ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
+                    {generatingCV ? "Génération..." : "Générer CV"}
+                  </PrimaryButton>
+                )}
 
-                <PrimaryButton
-                  onClick={handleGenerateCoverLetter}
-                  disabled={generatingCL || generating}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                >
-                  {generatingCL ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PenTool className="w-4 h-4 mr-2" />}
-                  {generatingCL ? "Génération..." : "Générer Lettre"}
-                </PrimaryButton>
+                {generatedDocs?.cl ? (
+                  <PrimaryButton
+                    onClick={() => {
+                      setInitialTab('cl');
+                      setShowDocuments(true);
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <PenTool className="w-4 h-4 mr-2" />
+                    Voir ma Lettre
+                  </PrimaryButton>
+                ) : (
+                  <PrimaryButton
+                    onClick={handleGenerateCoverLetter}
+                    disabled={generatingCL || generating}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+                  >
+                    {generatingCL ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PenTool className="w-4 h-4 mr-2" />}
+                    {generatingCL ? "Génération..." : "Générer Lettre"}
+                  </PrimaryButton>
+                )}
               </div>
 
               <PrimaryButton
@@ -532,6 +774,14 @@ const OffreDetail = () => {
                 {generating ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Sparkles className="w-5 h-5 mr-2" />}
                 {generating ? "Génération IA en cours..." : "Générer Pack Candidature IA"}
               </PrimaryButton>
+
+              <SecondaryButton
+                onClick={handleSyncWithExtension}
+                className="w-full border-dashed border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300"
+              >
+                <Puzzle className="w-5 h-5 mr-2" />
+                Envoyer vers l'extension
+              </SecondaryButton>
             </div>
           </CardContent>
         </Card>
