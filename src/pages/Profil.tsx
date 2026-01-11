@@ -20,6 +20,9 @@ const Profil = () => {
     experiences: "",
     competences: "",
     contact: "",
+    gender: "",
+    handicap: "",
+    salaryExpectations: "",
   });
 
   useEffect(() => {
@@ -111,6 +114,46 @@ const Profil = () => {
                   onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
                   placeholder="Email, téléphone, LinkedIn..."
                   rows={2}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Genre</Label>
+                  <select 
+                    id="gender"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  >
+                    <option value="">Non spécifié</option>
+                    <option value="M">Homme</option>
+                    <option value="F">Femme</option>
+                    <option value="NB">Non-binaire</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="handicap">Situation de handicap</Label>
+                  <select 
+                    id="handicap"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.handicap}
+                    onChange={(e) => setFormData({ ...formData, handicap: e.target.value })}
+                  >
+                    <option value="">Non spécifié</option>
+                    <option value="Oui">Oui</option>
+                    <option value="Non">Non</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="salaryExpectations">Prétentions salariales</Label>
+                <Input
+                  id="salaryExpectations"
+                  value={formData.salaryExpectations}
+                  onChange={(e) => setFormData({ ...formData, salaryExpectations: e.target.value })}
+                  placeholder="Ex: 45k - 55k"
                 />
               </div>
 

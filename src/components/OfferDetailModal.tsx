@@ -2,7 +2,9 @@ import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Job } from "@/types/job";
 import { Badge } from "@/components/ui/badge";
-import { X, Building2, MapPin, ExternalLink, Briefcase } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { X, Building2, MapPin, ExternalLink, Briefcase, CheckSquare, GraduationCap } from "lucide-react";
 
 interface OfferDetailModalProps {
   offer: Job | null;
@@ -19,6 +21,8 @@ export const OfferDetailModal = ({
   formatSalary,
   getJobDescription,
 }: OfferDetailModalProps) => {
+  const { toast } = useToast();
+
   // Fermer avec la touche ESC
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -44,6 +48,25 @@ export const OfferDetailModal = ({
       console.log("OfferDetailModal ouvert avec l'offre:", offer.id, offer.title);
     }
   }, [isOpen, offer]);
+
+  const handleStatusUpdate = (status: 'applied' | 'response_received' | 'interview') => {
+    if (!offer) return;
+    
+    let statusLabel = '';
+    switch(status) {
+        case 'applied': statusLabel = "Postulée"; break;
+        case 'response_received': statusLabel = "Réponse Reçue"; break;
+        case 'interview': statusLabel = "Entretien"; break;
+    }
+
+    toast({
+        title: "Statut de la candidature mis à jour",
+        description: `L'offre "${offer.title}" a été marquée comme "${statusLabel}".`,
+    });
+    // In a real app, you would call a function passed via props here
+    // to update the application state globally.
+    // e.g., onStatusUpdate(offer.id, status);
+  };
 
   if (!offer) return null;
 
@@ -79,7 +102,7 @@ export const OfferDetailModal = ({
                   <X className="w-5 h-5 text-gray-dark" />
                 </button>
 
-                {/* Titre principal */}
+                {/* Titre principal (intitulé de mission) */}
                 <div className="pr-12">
                   <h2 className="text-3xl font-semibold text-graphite mb-3 leading-tight">
                     {offer.title}
@@ -108,11 +131,6 @@ export const OfferDetailModal = ({
                       {offer.secteur}
                     </Badge>
                   )}
-                  {offer.niveau && (
-                    <Badge className="bg-gray-light text-gray-dark border border-gray-medium px-3 py-1.5 rounded-xl text-sm font-medium">
-                      {offer.niveau}
-                    </Badge>
-                  )}
                   {offer.famille && (
                     <Badge className="bg-gray-light text-gray-dark border border-gray-medium px-3 py-1.5 rounded-xl text-sm font-medium">
                       {offer.famille}
@@ -120,26 +138,57 @@ export const OfferDetailModal = ({
                   )}
                 </div>
 
-                {/* Salaire */}
-                {formatSalary(offer) && (
-                  <div className="p-4 rounded-2xl bg-mint-light border border-mint/30">
-                    <p className="text-sm font-medium text-gray-medium mb-1">Salaire</p>
-                    <p className="text-2xl font-semibold text-mint-dark">
-                      {formatSalary(offer)}
-                    </p>
+                {/* Salaire et Niveau de formation */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {formatSalary(offer) && (
+                      <div className="p-4 rounded-2xl bg-mint-light border border-mint/30">
+                        <p className="text-sm font-medium text-gray-medium mb-1">Salaire</p>
+                        <p className="text-2xl font-semibold text-mint-dark">
+                          {formatSalary(offer)}
+                        </p>
+                      </div>
+                    )}
+                    {(offer.niveau || offer.raw?.seniority_level) && (
+                      <div className="p-4 rounded-2xl bg-indigo/5 border border-indigo/20 flex flex-col justify-center">
+                        <p className="text-sm font-medium text-gray-medium mb-1">Niveau d'études</p>
+                        <p className="text-xl font-semibold text-indigo">
+                          {offer.niveau || offer.raw?.seniority_level}
+                        </p>
+                      </div>
+                    )}
+                </div>
+                
+                {/* Suivi de candidature */}
+                <div className="space-y-3 pt-4 border-t border-gray-light">
+                  <h3 className="text-xl font-semibold text-graphite flex items-center gap-2">
+                    <CheckSquare className="w-5 h-5 text-mint" />
+                    Suivi de candidature
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Button variant="outline" onClick={() => handleStatusUpdate('applied')}>J'ai postulé</Button>
+                    <Button variant="outline" onClick={() => handleStatusUpdate('response_received')}>J'ai eu une réponse</Button>
+                    <Button variant="outline" onClick={() => handleStatusUpdate('interview')}>J'ai un entretien</Button>
                   </div>
-                )}
+                </div>
 
-                {/* Description complète */}
-                <div className="space-y-3">
+                {/* Missions et responsabilités */}
+                <div className="space-y-3 pt-4 border-t border-gray-light">
                   <h3 className="text-xl font-semibold text-graphite flex items-center gap-2">
                     <Briefcase className="w-5 h-5 text-mint" />
-                    Description du poste
+                    Missions et responsabilités
                   </h3>
                   <div className="prose prose-sm max-w-none">
-                    <p className="text-gray-dark leading-relaxed whitespace-pre-wrap">
-                      {getJobDescription(offer)}
-                    </p>
+                    {offer.raw?.missions && Array.isArray(offer.raw.missions) && offer.raw.missions.length > 0 ? (
+                      <ul className="list-disc pl-5 text-gray-dark leading-relaxed">
+                        {offer.raw.missions.map((mission: string, index: number) => (
+                          <li key={index}>{mission}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-dark leading-relaxed whitespace-pre-wrap">
+                        {getJobDescription(offer)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -159,10 +208,10 @@ export const OfferDetailModal = ({
                         <span><strong>Type de contrat:</strong> {offer.contract_type}</span>
                       </div>
                     )}
-                    {offer.niveau && (
+                    {(offer.niveau || offer.raw?.seniority_level) && (
                       <div className="flex items-center gap-2 text-gray-dark">
-                        <span className="text-mint">🎓</span>
-                        <span><strong>Niveau:</strong> {offer.niveau}</span>
+                         <GraduationCap className="w-4 h-4 text-mint" />
+                        <span><strong>Niveau:</strong> {offer.niveau || offer.raw?.seniority_level}</span>
                       </div>
                     )}
                     {offer.famille && (
@@ -196,4 +245,3 @@ export const OfferDetailModal = ({
     </AnimatePresence>
   );
 };
-

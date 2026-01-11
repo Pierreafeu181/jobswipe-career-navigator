@@ -3,7 +3,7 @@ import { Session } from "@supabase/supabase-js";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SecondaryButton } from "@/components/SecondaryButton";
-import { User, Briefcase, LogOut } from "lucide-react";
+import { User, Briefcase, LogOut, LayoutDashboard } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 interface HomePageProps {
@@ -55,6 +55,14 @@ const HomePage = ({ session }: HomePageProps) => {
             >
               <User className="w-5 h-5 text-indigo-600" />
               Mon profil
+            </button>
+
+            <button
+              onClick={() => navigate("/application-dashboard")}
+              className="w-full px-6 py-4 rounded-2xl bg-white text-slate-700 font-medium shadow-sm border border-slate-200 hover:bg-slate-50 hover:border-indigo-200 hover:scale-[1.02] cursor-pointer transition-all duration-200 ease-out flex items-center justify-center gap-2"
+            >
+              <LayoutDashboard className="w-5 h-5 text-indigo-600" />
+              Dashboard
             </button>
           </div>
 

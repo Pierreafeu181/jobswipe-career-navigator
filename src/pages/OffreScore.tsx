@@ -108,7 +108,7 @@ const OffreScore = () => {
       const response = await fetch(`${API_URL}/score-application`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
+        body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (profile as any)?.gender || "M" })
       });
 
       if (!response.ok) throw new Error("Erreur lors du calcul du score");

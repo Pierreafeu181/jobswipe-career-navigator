@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabaseClient";
 import { Job } from "@/types/job";
 import { superlikeJob, getSuperlikedJobs } from "@/lib/swipes";
-import { Loader2, Heart, X, MapPin, Building2, Briefcase, ExternalLink, RotateCcw, Star, Home, Download, Trash2 } from "lucide-react";
+import { Loader2, Heart, X, MapPin, Building2, Briefcase, ExternalLink, RotateCcw, Star, Home, Download, Trash2, User, LayoutDashboard } from "lucide-react";
 import { JobSwipeScreen } from "@/components/swipe";
 import { OfferDetailModal } from "@/components/OfferDetailModal";
 import { useToast } from "@/hooks/use-toast";
@@ -811,8 +811,7 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
       const { error } = await (supabase as any)
         .from("swipes")
         .delete()
-        .eq("user_id", userId)
-        .eq("job_id", jobId);
+        .match({ user_id: userId, job_id: jobId });
 
       if (error) {
         console.error("Error deleting swipe:", error);
@@ -921,15 +920,30 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
       <div className="fixed left-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-violet-200 via-purple-200 to-indigo-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-blue-200 via-indigo-200 to-violet-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       
-      {/* Bouton Accueil - Fixe en haut à droite */}
-      <button
-        onClick={() => navigate("/")}
-        className="fixed top-4 right-4 z-50 w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
-        title="Retour à l'accueil"
-        aria-label="Retour à l'accueil"
-      >
-        <Home className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
-      </button>
+      {/* Navigation - Fixe en haut à droite */}
+      <div className="fixed top-4 right-4 z-50 flex gap-3">
+        <button
+          onClick={() => navigate("/application-dashboard")}
+          className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
+          title="Tableau de bord"
+        >
+          <LayoutDashboard className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
+        </button>
+        <button
+          onClick={() => navigate("/profil")}
+          className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
+          title="Profil"
+        >
+          <User className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
+        </button>
+        <button
+          onClick={() => navigate("/")}
+          className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
+          title="Accueil"
+        >
+          <Home className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
+        </button>
+      </div>
 
       <div className="relative z-10">
         <LogoHeader />

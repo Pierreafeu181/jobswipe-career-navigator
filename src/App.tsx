@@ -20,6 +20,7 @@ import OffreFiche from "./pages/OffreFiche";
 import OffreScore from "./pages/OffreScore";
 import Dashboard from "./pages/Dashboard";
 import Calendrier from "./pages/Calendrier";
+import ApplicationDashboard from "./pages/ApplicationDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -89,6 +90,7 @@ const App = () => {
                 <Route path="/offres/:id/fiche" element={<OffreFiche />} />
                 <Route path="/offres/:id/score" element={<OffreScore />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/application-dashboard" element={<ApplicationDashboard />} />
                 <Route path="/calendrier" element={<Calendrier />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

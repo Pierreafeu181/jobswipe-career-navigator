@@ -109,6 +109,21 @@ const Popup: React.FC = () => {
     });
   };
 
+  // Fonction pour trouver la frame (cadre) qui contient le plus de champs de formulaire
+  // Utile pour les sites comme Workday qui utilisent des iframes
+  const findBestFrame = async (tabId: number) => {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        func: () => document.querySelectorAll('input:not([type="hidden"]), textarea, select').length
+      });
+      const best = results.reduce((max, curr) => (curr.result || 0) > (max.result || 0) ? curr : max, results[0]);
+      return best?.frameId || 0;
+    } catch (e) {
+      return 0; // Fallback sur la frame principale en cas d'erreur
+    }
+  };
+
   const handleAnalyze = async () => {
     if (apiKey) {
       setStatus("IA : Analyse du formulaire...");
@@ -117,9 +132,12 @@ const Popup: React.FC = () => {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) {
+          // Détecter la meilleure frame avant d'envoyer le message
+          const frameId = await findBestFrame(tab.id);
           chrome.tabs.sendMessage(
             tab.id,
             { action: "scan_form_context" },
+            { frameId }, // Cibler la frame spécifique
             async (response: any) => {
               if (chrome.runtime.lastError || !response?.context) {
                 setStatus("Erreur lecture page");
@@ -169,9 +187,11 @@ const Popup: React.FC = () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
       if (tab?.id) {
+        const frameId = await findBestFrame(tab.id);
         chrome.tabs.sendMessage(
           tab.id,
           { action: "analyze_form" },
+          { frameId },
           (response: any) => {
             if (chrome.runtime.lastError) {
               setStatus("Erreur : Rechargez la page");
@@ -228,10 +248,19 @@ const Popup: React.FC = () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) return;
 
-      // 1. Récupérer le contexte du formulaire
-      chrome.tabs.sendMessage(tab.id, { action: "scan_form_context" }, async (response: any) => {
+      // 1. Détecter la frame contenant le formulaire
+      const frameId = await findBestFrame(tab.id);
+
+      // 2. Récupérer le contexte du formulaire dans cette frame
+      chrome.tabs.sendMessage(tab.id, { action: "scan_form_context" }, { frameId }, async (response: any) => {
         if (chrome.runtime.lastError || !response?.context) {
           setStatus("Erreur lecture page");
+          setStatusType("error");
+          return;
+        }
+
+        if (response.context.length === 0) {
+          setStatus("Aucun champ détecté (iframe ?)");
           setStatusType("error");
           return;
         }
@@ -294,8 +323,8 @@ const Popup: React.FC = () => {
             setWarnings(result.warnings);
           }
 
-          // 3. Appliquer le mapping
-          chrome.tabs.sendMessage(tab.id!, { action: "execute_ai_plan", plan: result.plan, userData: formData }, (res) => {
+          // 3. Appliquer le mapping dans la bonne frame
+          chrome.tabs.sendMessage(tab.id!, { action: "execute_ai_plan", plan: result.plan, userData: formData }, { frameId }, (res) => {
              const count = res?.count || 0;
              if (result.warnings && result.warnings.length > 0) {
                 setStatus(`Rempli (${count} champs). Voir avertissements.`);
@@ -406,8 +435,30 @@ const Popup: React.FC = () => {
             <input type="email" placeholder="Email" className="w-full p-2 border rounded text-sm" value={formData.identity.email} onChange={(e) => handleChange('identity', 'email', e.target.value)} />
             <input type="tel" placeholder="Téléphone" className="w-full p-2 border rounded text-sm" value={formData.identity.phone} onChange={(e) => handleChange('identity', 'phone', e.target.value)} />
             <input type="text" placeholder="Ville" className="w-full p-2 border rounded text-sm" value={formData.identity.city} onChange={(e) => handleChange('identity', 'city', e.target.value)} />
-            <input type="text" placeholder="Genre (H/F)" className="w-full p-2 border rounded text-sm" value={formData.identity.gender} onChange={(e) => handleChange('identity', 'gender', e.target.value)} />
-            <input type="text" placeholder="Handicap (Oui/Non)" className="w-full p-2 border rounded text-sm" value={formData.identity.handicap} onChange={(e) => handleChange('identity', 'handicap', e.target.value)} />
+            
+            <select 
+              className="w-full p-2 border rounded text-sm bg-white"
+              value={formData.identity.gender} 
+              onChange={(e) => handleChange('identity', 'gender', e.target.value)}
+            >
+              <option value="">Genre (Non spécifié)</option>
+              <option value="M">Homme</option>
+              <option value="F">Femme</option>
+              <option value="NB">Non-binaire</option>
+            </select>
+
+            <div className="space-y-1 pt-1">
+              <label className="text-xs font-medium text-gray-700 block">Situation de handicap</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-1 text-sm cursor-pointer">
+                  <input type="radio" name="handicap" value="Oui" checked={formData.identity.handicap === "Oui"} onChange={(e) => handleChange('identity', 'handicap', e.target.value)} /> Oui
+                </label>
+                <label className="flex items-center gap-1 text-sm cursor-pointer">
+                  <input type="radio" name="handicap" value="Non" checked={formData.identity.handicap === "Non"} onChange={(e) => handleChange('identity', 'handicap', e.target.value)} /> Non
+                </label>
+              </div>
+            </div>
+
             <input type="url" placeholder="LinkedIn URL" className="w-full p-2 border rounded text-sm" value={formData.links.linkedin} onChange={(e) => handleChange('links', 'linkedin', e.target.value)} />
             <input type="url" placeholder="Portfolio URL" className="w-full p-2 border rounded text-sm" value={formData.links.portfolio} onChange={(e) => handleChange('links', 'portfolio', e.target.value)} />
             <input type="text" placeholder="Prétentions salariales" className="w-full p-2 border rounded text-sm" value={formData.ai_responses.salary_expectations} onChange={(e) => handleChange('ai_responses', 'salary_expectations', e.target.value)} />

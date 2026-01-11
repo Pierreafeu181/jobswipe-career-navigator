@@ -73,7 +73,7 @@ const OffreFiche = () => {
               </div>
             </div>
 
-            <PrimaryButton onClick={() => navigate(`/offres/${id}`)}>
+            <PrimaryButton onClick={() => navigate(`/jobswipe/offres`)}>
               <ArrowLeft className="w-5 h-5 mr-2" />
               Retour
             </PrimaryButton>

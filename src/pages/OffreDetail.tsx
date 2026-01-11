@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SecondaryButton } from "@/components/SecondaryButton";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchJobById } from "@/lib/supabase";
@@ -11,7 +12,7 @@ import { addFavorite, removeFavorite, isFavorite } from "@/lib/storage";
 import { downloadFile } from "@/lib/utils";
 import { Job, UserProfile } from "@/types/job";
 import { Profile } from "@/types/profile";
-import { Loader2, ExternalLink, FileText, TrendingUp, Heart, Mail, Sparkles, PenTool, ArrowLeft, Home, Puzzle } from "lucide-react";
+import { Loader2, ExternalLink, FileText, TrendingUp, Heart, Mail, Sparkles, PenTool, ArrowLeft, Home, Puzzle, Check, Save, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GeneratedDocumentView } from "@/components/GeneratedDocumentView";
 
@@ -33,6 +34,8 @@ const OffreDetail = () => {
   } | null>(null);
   const [initialTab, setInitialTab] = useState<'cv' | 'cl'>('cv');
   const [showDocuments, setShowDocuments] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [showConfirmUnapply, setShowConfirmUnapply] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -65,7 +68,10 @@ const OffreDetail = () => {
             softSkills: Array.isArray(data.soft_skills) ? data.soft_skills : [],
             interests: Array.isArray(data.interests) ? data.interests : [],
             activities: Array.isArray(data.activities) ? data.activities : [],
-          };
+            gender: data.gender,
+            handicap: data.handicap,
+            salary_expectations: data.salary_expectations,
+          } as unknown as Profile;
           setUserProfile(loaded);
         }
       }
@@ -104,6 +110,25 @@ const OffreDetail = () => {
       loadJob(id);
       setFavorite(isFavorite(id));
     }
+  }, [id]);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && id) {
+        const { data } = await supabase
+          .from('swipes')
+          .select('status')
+          .eq('user_id', user.id)
+          .eq('job_id', id)
+          .maybeSingle();
+        
+        if (data) {
+          setApplicationStatus(data.status || 'liked');
+        }
+      }
+    };
+    checkStatus();
   }, [id]);
 
   // Chargement des documents générés depuis le localStorage
@@ -295,7 +320,7 @@ const OffreDetail = () => {
         const resCV = await fetch(`${API_URL}/generate-cv`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
+          body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (userProfile as any)?.gender || "M" })
         });
 
         if (!resCV.ok) throw new Error("Erreur lors de la génération du CV");
@@ -310,7 +335,7 @@ const OffreDetail = () => {
         const resCL = await fetch(`${API_URL}/generate-cover-letter`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
+          body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (userProfile as any)?.gender || "M" })
         });
 
         if (!resCL.ok) throw new Error("Erreur lors de la génération de la lettre");
@@ -369,7 +394,7 @@ const OffreDetail = () => {
       const response = await fetch(`${API_URL}/generate-cv`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
+        body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (userProfile as any)?.gender || "M" })
       });
 
       if (!response.ok) {
@@ -433,7 +458,7 @@ const OffreDetail = () => {
       const response = await fetch(`${API_URL}/generate-cover-letter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: "M" })
+        body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (userProfile as any)?.gender || "M" })
       });
 
       if (!response.ok) {
@@ -492,8 +517,8 @@ const OffreDetail = () => {
       email: cvContact?.email || userProfile?.email || "", 
       phone: cvContact?.phone || userProfile?.phone || "",
       city: cvContact?.city || userProfile?.city || "",
-      gender: "",
-      handicap: ""
+      gender: (userProfile as any)?.gender || "",
+      handicap: (userProfile as any)?.handicap || ""
     };
 
     const links = { 
@@ -553,7 +578,7 @@ const OffreDetail = () => {
       documents,
       ai_responses: { 
         why_us: "", 
-        salary_expectations: "" 
+        salary_expectations: (userProfile as any)?.salary_expectations || "" 
       },
       structured_cv: generatedDocs?.cv?.content || null
     };
@@ -566,6 +591,71 @@ const OffreDetail = () => {
     }, "*");
 
     toast({ description: "Données (CV, Lettre, Profil) envoyées à l'extension !" });
+  };
+
+  const handleApply = async () => {
+    if (!job) return;
+    
+    window.open(job.redirect_url, "_blank");
+
+    // Marquer comme postulé automatiquement si ce n'est pas déjà le cas
+    if (applicationStatus !== 'applied') {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { error } = await supabase.from('swipes').upsert({
+            user_id: user.id,
+            job_id: job.id,
+            direction: 'like',
+            status: 'applied'
+          }, { onConflict: 'user_id,job_id' });
+          
+          if (error) {
+            console.error("handleApply: Erreur Supabase", error);
+            throw error;
+          }
+
+          setApplicationStatus('applied');
+          toast({ description: "Offre marquée comme postulée" });
+        }
+      } catch (e) {
+        console.error("Erreur lors de la mise à jour du statut:", e);
+      }
+    }
+  };
+
+  const updateApplicationStatus = async (newStatus: string) => {
+    if (!job) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+        const { error } = await supabase.from('swipes').upsert({
+          user_id: user.id,
+          job_id: job.id,
+          direction: 'like',
+          status: newStatus
+        }, { onConflict: 'user_id,job_id' });
+        
+        if (error) {
+            console.error("updateApplicationStatus: Erreur Supabase", error);
+            throw error;
+        }
+
+        setApplicationStatus(newStatus);
+        toast({ description: newStatus === 'applied' ? "Offre marquée comme postulée" : "Statut 'Postulé' retiré" });
+    } catch (e) {
+        console.error(e);
+        toast({ variant: "destructive", description: "Erreur lors de la mise à jour du statut" });
+    }
+  };
+
+  const toggleApplicationStatus = () => {
+    if (applicationStatus === 'applied') {
+      setShowConfirmUnapply(true);
+    } else {
+      updateApplicationStatus('applied');
+    }
   };
 
   if (loading) {
@@ -634,8 +724,10 @@ const OffreDetail = () => {
         <LogoHeader />
       </div>
       
-      <div className="px-6 py-8 max-w-2xl mx-auto relative z-10">
-        <Card className="shadow-lg border-slate-100">
+      <div className="px-6 py-8 max-w-7xl mx-auto relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <Card className="shadow-lg border-slate-100 h-full">
           <CardHeader className="relative">
             <div className="flex justify-between items-start">
               <h2 className="text-xl font-bold text-foreground pr-16">Poste</h2>
@@ -687,84 +779,199 @@ const OffreDetail = () => {
             </div>
 
             <div>
-              <h3 className="font-semibold text-foreground mb-2">Informations complémentaires</h3>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <p>📍 {job.location}</p>
-                <p>📄 {job.contract_type}</p>
-                <p>🎓 {job.niveau}</p>
-                <p>💼 {job.famille}</p>
+              <h3 className="font-semibold text-foreground mb-2">Détails du poste</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <div className="space-y-1">
+                  <p>📍 {job.location || "Non spécifié"}</p>
+                  <p>📄 {job.contract_type || job.raw?.contract_type || "Non spécifié"}</p>
+                  <p>🎓 {job.niveau || job.raw?.seniority_level || "Non spécifié"}</p>
+                  {job.famille && <p>💼 {job.famille}</p>}
+                  {job.raw?.salary && <p>💰 {job.raw.salary}</p>}
+                </div>
+                {job.raw?.keywords && job.raw.keywords.length > 0 && (
+                  <div>
+                    <p className="mb-1 font-medium text-foreground">Mots-clés :</p>
+                    <div className="flex flex-wrap gap-1">
+                      {job.raw.keywords.map((kw: string, i: number) => (
+                        <Badge key={i} variant="outline" className="text-xs font-normal">{kw}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="space-y-3 pt-4">
-              <PrimaryButton onClick={() => window.open(job.redirect_url, "_blank")}>
+            {job.raw?.missions && Array.isArray(job.raw.missions) && job.raw.missions.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-2">Missions</h3>
+                <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                  {job.raw.missions.map((mission: string, index: number) => (
+                    <li key={index}>{mission}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {((job.raw?.Education && job.raw.Education.length > 0) || (job.raw?.requirements && job.raw.requirements.length > 0)) && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-2">Profil recherché</h3>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  {job.raw?.Education && job.raw.Education.length > 0 && (
+                    <div>
+                      <span className="font-medium text-foreground">Formation : </span>
+                      <ul className="list-disc pl-5 mt-1">
+                        {job.raw.Education.map((edu: string, i: number) => (
+                          <li key={i}>{edu}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {job.raw?.requirements && job.raw.requirements.length > 0 && (
+                    <div>
+                      <span className="font-medium text-foreground">Pré-requis : </span>
+                      <ul className="list-disc pl-5 mt-1">
+                        {job.raw.requirements.map((req: string, i: number) => (
+                          <li key={i}>{req}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {((job.raw?.hard_skills && job.raw.hard_skills.length > 0) || (job.raw?.soft_skills && job.raw.soft_skills.length > 0)) && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-2">Compétences</h3>
+                <div className="space-y-3">
+                  {job.raw?.hard_skills && job.raw.hard_skills.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wider">Techniques</p>
+                      <div className="flex flex-wrap gap-2">
+                        {job.raw.hard_skills.map((skill: string, i: number) => (
+                          <Badge key={i} variant="secondary" className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {job.raw?.soft_skills && job.raw.soft_skills.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wider">Comportementales</p>
+                      <div className="flex flex-wrap gap-2">
+                        {job.raw.soft_skills.map((skill: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-slate-600 border-slate-200">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </CardContent>
+        </Card>
+          </div>
+
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <Card className="shadow-lg border-slate-100">
+                <CardHeader>
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                    Outils & Actions
+                  </h3>
+                </CardHeader>
+                <CardContent className="space-y-3">
+              <PrimaryButton onClick={handleApply}>
                 <ExternalLink className="w-5 h-5 mr-2" />
-                Postuler
+                Voir l'annonce
               </PrimaryButton>
 
-              <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                onClick={toggleApplicationStatus}
+                className={`w-full py-6 text-lg font-semibold rounded-lg shadow-sm ${
+                  applicationStatus === 'applied' 
+                    ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {applicationStatus === 'applied' ? (
+                  <>
+                    <Check className="w-5 h-5 mr-2" />
+                    Postulé
+                  </>
+                ) : (
+                  <>
+                    <HelpCircle className="w-5 h-5 mr-2" />
+                    Postulé ?
+                  </>
+                )}
+              </Button>
+
+              <PrimaryButton
+                onClick={() => navigate(`/offres/${id}/fiche`)}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Détails
+              </PrimaryButton>
+
+              <PrimaryButton
+                onClick={() => navigate(`/offres/${id}/score`)}
+                className="bg-secondary hover:bg-secondary/90"
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Score
+              </PrimaryButton>
+              
+              {generatedDocs?.cv ? (
                 <PrimaryButton
-                  onClick={() => navigate(`/offres/${id}/fiche`)}
-                  className="bg-primary hover:bg-primary/90"
+                  onClick={() => {
+                    setInitialTab('cv');
+                    setShowDocuments(true);
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
                 >
                   <FileText className="w-4 h-4 mr-2" />
-                  Détails
+                  Voir mon CV
                 </PrimaryButton>
-
+              ) : (
                 <PrimaryButton
-                  onClick={() => navigate(`/offres/${id}/score`)}
-                  className="bg-secondary hover:bg-secondary/90"
+                  onClick={handleGenerateCV}
+                  disabled={generatingCV || generating}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                 >
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Score
+                  {generatingCV ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
+                  {generatingCV ? "Génération..." : "Générer CV"}
                 </PrimaryButton>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                {generatedDocs?.cv ? (
-                  <PrimaryButton
-                    onClick={() => {
-                      setInitialTab('cv');
-                      setShowDocuments(true);
-                    }}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    Voir mon CV
-                  </PrimaryButton>
-                ) : (
-                  <PrimaryButton
-                    onClick={handleGenerateCV}
-                    disabled={generatingCV || generating}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                  >
-                    {generatingCV ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
-                    {generatingCV ? "Génération..." : "Générer CV"}
-                  </PrimaryButton>
-                )}
+              )}
 
-                {generatedDocs?.cl ? (
-                  <PrimaryButton
-                    onClick={() => {
-                      setInitialTab('cl');
-                      setShowDocuments(true);
-                    }}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <PenTool className="w-4 h-4 mr-2" />
-                    Voir ma Lettre
-                  </PrimaryButton>
-                ) : (
-                  <PrimaryButton
-                    onClick={handleGenerateCoverLetter}
-                    disabled={generatingCL || generating}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                  >
-                    {generatingCL ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PenTool className="w-4 h-4 mr-2" />}
-                    {generatingCL ? "Génération..." : "Générer Lettre"}
-                  </PrimaryButton>
-                )}
-              </div>
+              {generatedDocs?.cl ? (
+                <PrimaryButton
+                  onClick={() => {
+                    setInitialTab('cl');
+                    setShowDocuments(true);
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <PenTool className="w-4 h-4 mr-2" />
+                  Voir ma Lettre
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton
+                  onClick={handleGenerateCoverLetter}
+                  disabled={generatingCL || generating}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+                >
+                  {generatingCL ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PenTool className="w-4 h-4 mr-2" />}
+                  {generatingCL ? "Génération..." : "Générer Lettre"}
+                </PrimaryButton>
+              )}
 
               <PrimaryButton
                 onClick={handleGenerateApplication}
@@ -782,10 +989,46 @@ const OffreDetail = () => {
                 <Puzzle className="w-5 h-5 mr-2" />
                 Envoyer vers l'extension
               </SecondaryButton>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
+
+      {/* Modal de confirmation pour retirer le statut postulé */}
+      {showConfirmUnapply && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 p-6 border border-slate-100">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-4">
+                <HelpCircle className="w-6 h-6 text-amber-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Retirer le statut "Postulé" ?</h3>
+              <p className="text-slate-600">
+                Voulez-vous vraiment retirer le statut "Postulé" de cette offre ? Elle repassera en statut "Enregistré".
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowConfirmUnapply(false)}
+                className="flex-1 px-4 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-all duration-200"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  updateApplicationStatus('liked');
+                  setShowConfirmUnapply(false);
+                }}
+                className="flex-1 px-4 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all duration-200"
+              >
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

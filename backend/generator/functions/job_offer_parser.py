@@ -98,6 +98,7 @@ with EXACTLY these names:
   "requirements": string[],          // Short sentences focusing on years of experience required (e.g., "3+ years in data analysis")
   "keywords": string[],    // Most relevant, high-signal terms appearing in the job offer
   "salary": string | null, // Salary range or amount if specified (e.g. "40k-50k", "500€/day"), null otherwise
+  "description": string | null,      // Full, raw, and cleaned-up job description text
   "language": "fr" | "en"             // The language of the job posting (French or English)
 }}
 
@@ -176,9 +177,6 @@ def parse_job_offer_gemini(offer_text: str) -> Dict[str, Any]:
     prompt = build_parsing_prompt(offer_text, language)
     raw_output = generate_with_gemini(prompt)
     parsed_json = extract_json_from_output(raw_output)
-
-    # Ajout de la description originale pour référence
-    parsed_json["description"] = offer_text
 
     print(parsed_json)
     return parsed_json

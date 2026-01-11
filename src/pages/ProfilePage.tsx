@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogoHeader } from "@/components/LogoHeader";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2, User, Save, CheckCircle2, AlertCircle, Home } from "lucide-react";
+import { Loader2, User, Save, CheckCircle2, AlertCircle, Home, Briefcase, LayoutDashboard } from "lucide-react";
 import { Profile } from "@/types/profile";
 import { PersonalInfoSection } from "@/components/profile/PersonalInfoSection";
 import { EducationSection } from "@/components/profile/EducationSection";
@@ -143,7 +145,10 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
         softSkills: Array.isArray(data.soft_skills) ? data.soft_skills : [],
         interests: Array.isArray(data.interests) ? data.interests : [],
         activities: Array.isArray(data.activities) ? data.activities : [],
-      };
+        gender: data.gender || null,
+        handicap: data.handicap || null,
+        salary_expectations: data.salary_expectations || null,
+      } as unknown as Profile;
 
       setProfile(loadedProfile);
 
@@ -224,6 +229,9 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
         soft_skills: Array.isArray(profile.softSkills) ? profile.softSkills : [],
         interests: Array.isArray(profile.interests) ? profile.interests : [],
         activities: Array.isArray(profile.activities) ? profile.activities : [],
+        gender: (profile as any).gender || null,
+        handicap: (profile as any).handicap || null,
+        salary_expectations: (profile as any).salary_expectations || null,
       };
 
       // Ajouter availability seulement si elle existe dans le schéma
@@ -398,15 +406,30 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
       <div className="fixed left-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-violet-200 via-purple-200 to-indigo-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-blue-200 via-indigo-200 to-violet-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       
-      {/* Bouton Accueil - Fixe en haut à droite */}
-      <button
-        onClick={() => navigate("/")}
-        className="fixed top-4 right-4 z-50 w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
-        title="Retour à l'accueil"
-        aria-label="Retour à l'accueil"
-      >
-        <Home className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
-      </button>
+      {/* Navigation - Fixe en haut à droite */}
+      <div className="fixed top-4 right-4 z-50 flex gap-3">
+        <button
+          onClick={() => navigate("/application-dashboard")}
+          className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
+          title="Tableau de bord"
+        >
+          <LayoutDashboard className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
+        </button>
+        <button
+          onClick={() => navigate("/jobswipe/offres")}
+          className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
+          title="Offres"
+        >
+          <Briefcase className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
+        </button>
+        <button
+          onClick={() => navigate("/")}
+          className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
+          title="Accueil"
+        >
+          <Home className="w-5 h-5 text-indigo-600" strokeWidth={2.5} />
+        </button>
+      </div>
 
       <div className="relative z-10">
         <LogoHeader />
@@ -474,6 +497,44 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
         <div className="space-y-6">
           <CollapsibleSection title="Informations personnelles" defaultOpen>
             <PersonalInfoSection profile={profile} onUpdate={handleProfileUpdate} />
+            
+            <div className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Genre</Label>
+                <select 
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={(profile as any).gender || ""}
+                  onChange={(e) => handleProfileUpdate({ gender: e.target.value } as any)}
+                >
+                  <option value="">Non spécifié</option>
+                  <option value="M">Homme</option>
+                  <option value="F">Femme</option>
+                  <option value="NB">Non-binaire</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Situation de handicap</Label>
+                <select 
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={(profile as any).handicap || ""}
+                  onChange={(e) => handleProfileUpdate({ handicap: e.target.value } as any)}
+                >
+                  <option value="">Non spécifié</option>
+                  <option value="Oui">Oui</option>
+                  <option value="Non">Non</option>
+                </select>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label>Prétentions salariales</Label>
+                <Input 
+                  placeholder="Ex: 45k - 55k"
+                  value={(profile as any).salary_expectations || ""}
+                  onChange={(e) => handleProfileUpdate({ salary_expectations: e.target.value } as any)}
+                />
+              </div>
+            </div>
           </CollapsibleSection>
           
           <CollapsibleSection title="Formation">
