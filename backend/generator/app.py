@@ -15,10 +15,21 @@ from functions.generator_service import JobSwipeGeneratorService
 
 app = FastAPI(title="JobSwipe Generator API", version="1.0")
 
+# Configuration des origines autorisées pour CORS
+origins = [
+    "http://localhost:5173",      # Développement local Vite
+    "http://localhost:3000",      # Développement local alternatif
+    "https://jobswipe-procom.github.io",  # Production (GitHub Pages)
+]
+
+# Ajout d'une origine supplémentaire via variable d'environnement (ex: pour Render/Vercel previews)
+if os.getenv("FRONTEND_URL"):
+    origins.append(os.getenv("FRONTEND_URL"))
+
 # Configuration CORS pour permettre les appels depuis le frontend (React)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En prod, remplacez par l'URL de votre frontend (ex: http://localhost:5173)
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
