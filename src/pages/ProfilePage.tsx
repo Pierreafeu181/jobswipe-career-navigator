@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogoHeader } from "@/components/LogoHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2, User, Save, CheckCircle2, AlertCircle, Home, Briefcase, LayoutDashboard } from "lucide-react";
+import { Loader2, User, Save, CheckCircle2, AlertCircle, Home, Briefcase, LayoutDashboard, Upload, FileText } from "lucide-react";
 import { Profile } from "@/types/profile";
 import { PersonalInfoSection } from "@/components/profile/PersonalInfoSection";
 import { EducationSection } from "@/components/profile/EducationSection";
@@ -17,19 +17,39 @@ import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
 import { saveProfile as saveProfileToStorage } from "@/lib/storage";
 import { UserProfile } from "@/types/job";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProfilePageProps {
   userId: string;
 }
 
+const formatDateForInput = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "";
+  // Si c'est déjà au format YYYY-MM, on le garde
+  if (/^\d{4}-\d{2}$/.test(dateStr)) return dateStr;
+  
+  // Gestion spécifique pour "YYYY" -> "YYYY-01" pour éviter les problèmes de timezone
+  if (/^\d{4}$/.test(dateStr)) return `${dateStr}-01`;
+
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+};
+
 const ProfilePage = ({ userId }: ProfilePageProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"success" | "error" | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Récupérer l'utilisateur authentifié depuis Supabase
   useEffect(() => {
@@ -137,8 +157,16 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
         linkedin: data.linkedin || null,
         availability: data.availability || null,
         // Les colonnes JSONB sont déjà des arrays/objets, utiliser array vide si null ou non-array
-        education: Array.isArray(data.education) ? data.education : [],
-        experiences: Array.isArray(data.experiences) ? data.experiences : [],
+        education: Array.isArray(data.education) ? data.education.map((e: any) => ({
+          ...e,
+          startDate: formatDateForInput(e.startDate),
+          endDate: formatDateForInput(e.endDate)
+        })) : [],
+        experiences: Array.isArray(data.experiences) ? data.experiences.map((e: any) => ({
+          ...e,
+          startDate: formatDateForInput(e.startDate),
+          endDate: formatDateForInput(e.endDate)
+        })) : [],
         projects: Array.isArray(data.projects) ? data.projects : [],
         languages: Array.isArray(data.languages) ? data.languages : [],
         hardSkills: Array.isArray(data.hard_skills) ? data.hard_skills : [],
@@ -343,6 +371,96 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setImporting(true);
+      toast({ description: "Analyse du CV en cours..." });
+
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      if (profile) {
+        formData.append("current_profile", JSON.stringify(profile));
+      }
+
+      const API_URL = import.meta.env.VITE_API_URL;
+      const response = await fetch(`${API_URL}/parse-cv-upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de l'analyse du CV");
+      }
+
+      const data = await response.json();
+      
+      // Mapping des données reçues vers le format Profile
+      const updatedProfile: Partial<Profile> = {
+        first_name: data.first_name || profile?.first_name,
+        last_name: data.last_name || profile?.last_name,
+        email: data.contacts?.emails?.[0] || profile?.email,
+        phone: data.contacts?.phones?.[0] || profile?.phone,
+        city: data.contacts?.locations?.[0] || profile?.city,
+        target_role: data.target_role || profile?.target_role,
+        experience_level: data.experience_level || profile?.experience_level,
+        // Mapping des compétences
+        hardSkills: data.skills?.hard_skills || [],
+        softSkills: data.skills?.soft_skills || [],
+        // Mapping des langues (string -> object)
+        languages: (data.skills?.languages || []).map((lang: any) => {
+          if (typeof lang === 'string') return { name: lang, level: "" };
+          return {
+            name: lang.name || "",
+            level: lang.level || ""
+          };
+        }),
+        // Mapping des expériences
+        experiences: (data.professional_experiences || []).map((exp: any) => ({
+          role: exp.title || "",
+          company: exp.company || "",
+          location: exp.location || "",
+          startDate: formatDateForInput(exp.start_date),
+          endDate: formatDateForInput(exp.end_date),
+          description: exp.description || ""
+        })),
+        // Mapping de la formation
+        education: (data.education || []).map((edu: any) => ({
+          degree: edu.degree || "",
+          school: edu.school || "",
+          location: edu.location || "",
+          startDate: formatDateForInput(edu.start_date),
+          endDate: formatDateForInput(edu.end_date),
+          details: edu.description || ""
+        })),
+        // Mapping des intérêts
+        interests: data.interests || [],
+        // Mapping des projets
+        projects: (data.academic_projects || []).map((proj: any) => ({
+          name: proj.title || "",
+          role: proj.context || "",
+          description: proj.description || "",
+          skills: (proj.technologies || []).join(", ")
+        }))
+      };
+
+      // Mise à jour du state local
+      handleProfileUpdate(updatedProfile);
+      
+      toast({ description: "Profil pré-rempli avec succès ! Pensez à vérifier et sauvegarder." });
+      
+    } catch (err) {
+      console.error("Erreur import CV:", err);
+      toast({ variant: "destructive", description: "Impossible d'analyser le CV." });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -450,6 +568,24 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
             </div>
           </div>
 
+          {/* Bouton Import CV */}
+          <div className="flex gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept=".pdf,.docx,.doc"
+              onChange={handleFileUpload}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing || saving}
+              className="px-4 py-3 rounded-2xl font-medium bg-white text-slate-700 border border-slate-200 shadow-sm hover:bg-slate-50 transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+            >
+              {importing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+              <span className="hidden sm:inline">Importer mon CV</span>
+            </button>
+
           {/* Bouton de sauvegarde avec feedback */}
           <button
             onClick={saveProfile}
@@ -484,6 +620,7 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
               </>
             )}
           </button>
+          </div>
         </div>
 
         {/* Message d'erreur global */}

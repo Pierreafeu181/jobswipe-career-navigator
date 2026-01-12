@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ArrowLeft, Download, FileText, PenTool, Mail, Phone, MapPin, Globe, CheckCircle2 } from "lucide-react";
+import { CVPreview } from "@/components/CVPreview";
 
 interface GeneratedDocumentViewProps {
   cvData?: { pdf: string; content: any };
@@ -32,143 +33,6 @@ export const GeneratedDocumentView = ({ cvData, clData, onBack, jobTitle, compan
     link.click();
     document.body.removeChild(link);
   };
-
-  const renderCV = (content: any) => {
-    if (!content) {
-        return <div className="p-8 text-center text-slate-500">Contenu du CV non disponible.</div>;
-    }
-    
-    // Utiliser les infos du contenu généré, ou fallback sur le profil utilisateur
-    const contact_info = content.contact_info || (userProfile ? {
-        name: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || "Nom Prénom",
-        email: userProfile.email,
-        phone: userProfile.phone,
-        city: userProfile.city,
-        linkedin: userProfile.linkedin,
-        role: userProfile.target_role
-    } : { name: "Nom Prénom" });
-
-    return (
-    <div className="w-full max-w-[21cm] mx-auto bg-white shadow-2xl min-h-[29.7cm] p-[2.5cm] text-slate-800 text-sm leading-normal animate-in fade-in slide-in-from-bottom-4 duration-500 font-sans">
-      {/* Header */}
-      <div className="border-b-2 border-slate-800 pb-6 mb-8">
-        <div className="flex justify-between items-start">
-            <div>
-                <h1 className="text-4xl font-bold text-slate-900 uppercase tracking-tight mb-2">{contact_info.name}</h1>
-                <h2 className="text-xl text-indigo-600 font-semibold tracking-wide">{content.cv_title || contact_info.role || "Titre du CV"}</h2>
-            </div>
-            <div className="text-right text-xs text-slate-600 space-y-1">
-                {contact_info.email && <div className="flex items-center justify-end gap-2">{contact_info.email} <Mail className="w-3 h-3" /></div>}
-                {contact_info.phone && <div className="flex items-center justify-end gap-2">{contact_info.phone} <Phone className="w-3 h-3" /></div>}
-                {contact_info.city && <div className="flex items-center justify-end gap-2">{contact_info.city} <MapPin className="w-3 h-3" /></div>}
-                {contact_info.linkedin && <div className="flex items-center justify-end gap-2">LinkedIn <Globe className="w-3 h-3" /></div>}
-            </div>
-        </div>
-        
-        {content.objective && (
-          <p className="text-slate-600 mt-6 text-justify leading-relaxed">{content.objective}</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-8">
-          {/* Experience */}
-          {content.experiences && content.experiences.length > 0 && (
-            <section>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-                Expériences Professionnelles
-              </h3>
-              <div className="space-y-6">
-                {content.experiences.map((exp: any, i: number) => (
-                  <div key={i} className="relative pl-4 border-l-2 border-slate-100">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <h4 className="font-bold text-slate-800 text-base">{exp.target_title || exp.source_title}</h4>
-                      <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded">{exp.start_date} - {exp.end_date}</span>
-                    </div>
-                    <div className="text-indigo-600 font-medium text-sm mb-2">{exp.company} {exp.location ? `• ${exp.location}` : ''}</div>
-                    <ul className="list-disc list-outside ml-4 space-y-1 text-slate-600 text-sm leading-relaxed marker:text-slate-400">
-                      {exp.bullets?.map((b: string, j: number) => <li key={j}>{b}</li>)}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Education */}
-          {content.education && content.education.length > 0 && (
-            <section>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-                Formation
-              </h3>
-              <div className="space-y-4">
-                {content.education.map((edu: any, i: number) => (
-                  <div key={i} className="flex justify-between items-start">
-                    <div>
-                        <h4 className="font-bold text-slate-800">{edu.degree}</h4>
-                        <div className="text-slate-600">{edu.school} {edu.location ? `• ${edu.location}` : ''}</div>
-                        {edu.bullets && (
-                            <ul className="list-disc list-outside ml-4 mt-1 text-slate-500 text-xs">
-                                {edu.bullets.map((b: string, j: number) => <li key={j}>{b}</li>)}
-                            </ul>
-                        )}
-                    </div>
-                    <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded whitespace-nowrap">{edu.start_date} - {edu.end_date}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Skills & Interests */}
-          <div className="grid grid-cols-2 gap-8">
-              {content.skills && (
-                <section>
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-                    Compétences
-                  </h3>
-                  
-                  {content.skills.highlighted && (
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {content.skills.highlighted.map((skill: string, i: number) => (
-                        <span key={i} className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-xs font-semibold border border-indigo-100">{skill}</span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    {content.skills.sections?.map((section: any, i: number) => (
-                      <div key={i}>
-                        <h4 className="font-semibold text-slate-800 text-xs mb-1 uppercase">{section.section_title}</h4>
-                        <p className="text-sm text-slate-600 leading-relaxed">{section.items.join(", ")}</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {content.interests && content.interests.length > 0 && (
-                 <section>
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-                    Intérêts
-                  </h3>
-                  <ul className="space-y-2">
-                    {content.interests.map((it: any, i: number) => (
-                        <li key={i} className="text-sm text-slate-600">
-                            <span className="font-semibold text-slate-800">{it.label}</span>
-                            {it.sentence && <span className="text-slate-500"> — {it.sentence}</span>}
-                        </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-          </div>
-      </div>
-    </div>
-  )};
 
   const renderCoverLetter = (content: any) => {
     if (!content) {
@@ -303,7 +167,7 @@ export const GeneratedDocumentView = ({ cvData, clData, onBack, jobTitle, compan
           {/* Document Preview Area */}
           <div ref={previewRef} className="flex-1 overflow-y-auto bg-slate-100/50 p-4 md:p-8 flex justify-center">
              <div className="w-full max-w-[21cm] transition-all duration-300 ease-in-out transform">
-                {activeTab === 'cv' && cvData ? renderCV(cvData.content) : null}
+                {activeTab === 'cv' && cvData ? <CVPreview content={cvData.content} /> : null}
                 {activeTab === 'cl' && clData ? renderCoverLetter(clData.content) : null}
              </div>
           </div>

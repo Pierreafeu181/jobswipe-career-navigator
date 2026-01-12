@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: jobswipe-generator
+Version: 0.1.0
+Summary: API de génération de CV et Lettres de motivation avec IA
+Requires-Python: >=3.10
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: python-multipart
+Requires-Dist: pydantic
+Requires-Dist: python-dotenv
+Requires-Dist: google-genai
+Requires-Dist: python-docx
+Requires-Dist: xhtml2pdf
+Requires-Dist: pyhere
+Requires-Dist: pypdf

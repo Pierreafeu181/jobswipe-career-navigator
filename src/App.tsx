@@ -68,7 +68,12 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <HashRouter>
+        <HashRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
           <Routes>
             {/* Routes publiques - accessibles sans session */}
             <Route path="/auth/callback" element={<AuthCallback />} />

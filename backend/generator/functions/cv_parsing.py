@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 import json
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from dotenv import load_dotenv
 from google import genai
@@ -31,7 +31,7 @@ load_dotenv()
 # ============================================================================
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME")
 
 print("model name" , GEMINI_MODEL_NAME)
 _client = genai.Client(api_key=GEMINI_API_KEY)
@@ -63,31 +63,64 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
 
     try:
         return json.loads(json_str)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"[DEBUG] JSONDecodeError (first attempt): {e}")
+        print(f"[DEBUG] Raw output was:\n{output}\n---")
         # Réparation basique
+        # 0. Suppression des commentaires multi-lignes /* ... */
+        json_str = re.sub(r"/\*.*?\*/", "", json_str, flags=re.DOTALL)
+        # 1. Suppression des commentaires //
         json_str = re.sub(r"(?<!:)\/\/.*", "", json_str)
+        # 2. Suppression des virgules traînantes
         json_str = re.sub(r",\s*([\]}])", r"\1", json_str)
+        # 3. Ajout des virgules manquantes entre accolades/crochets et clé suivante
         json_str = re.sub(r"([\}\]])\s*(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        # 4. Ajout des virgules manquantes après une valeur simple
         json_str = re.sub(r"([0-9]+|true|false|null)\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
+        # 5. Ajout des virgules manquantes après une string
         json_str = re.sub(r"(\")\s+(\"[^\"]+\"\s*:)", r"\1,\2", json_str)
-        return json.loads(json_str)
+        
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e2:
+            print(f"[ERROR] JSONDecodeError (after repair): {e2}")
+            print(f"[ERROR] Failed JSON string:\n{json_str}\n---")
+            print(f"[WARNING] Échec du parsing JSON du CV. Retour d'un profil partiel.")
+            # Fallback pour éviter le crash 500
+            return {"raw_summary": "Erreur de lecture automatique. Veuillez remplir votre profil manuellement."}
 
 
 # ============================================================================
 # 3. PROMPT DE PARSING DU CV
 # ============================================================================
 
-def build_cv_parsing_prompt(cv_text: str) -> str:
+def build_cv_parsing_prompt(cv_text: str, current_profile: Optional[Dict[str, Any]] = None) -> str:
     """
     Build the prompt sent to Gemini to parse the CV into a structured JSON.
 
     Prompt en anglais pour limiter les ambiguïtés.
     """
+    context_instruction = ""
+    if current_profile:
+        profile_str = json.dumps(current_profile, ensure_ascii=False, indent=2)
+        context_instruction = f"""
+CONTEXT - EXISTING USER PROFILE:
+The user already has a profile with the following data:
+{profile_str}
+
+TASK UPDATE:
+- You must MERGE the information from the CV text below into this existing profile.
+- KEEP existing information if it is not mentioned in the CV (do not delete existing experiences or skills).
+- UPDATE fields if the CV provides newer or more detailed information.
+- AVOID duplicates in lists (e.g. skills).
+"""
+
     return f"""
 You are an AI expert specialized in parsing CVs and resumes.
 
 Your task:
 Analyze the CV text below and extract structured information about the candidate.
+{context_instruction}
 You MUST return STRICTLY a valid JSON object, with NO explanation, NO text
 before, and NO text after.
 
@@ -98,6 +131,8 @@ with EXACTLY these names:
   "first_name": string | null,          // Candidate first name
   "last_name": string | null,           // Candidate last name
   "full_name": string | null,           // Full name as it appears on the CV
+  "target_role": string | null,         // Inferred target job title based on CV content
+  "experience_level": string | null,    // e.g. "Junior", "Senior", "Expert", "Student"
 
   "contacts": {{
     "emails": string[],                 // all email addresses found
@@ -122,7 +157,12 @@ with EXACTLY these names:
   "skills": {{
     "hard_skills": string[],            // technical / domain skills
     "soft_skills": string[],            // interpersonal / behavioral
-    "languages": string[]               // spoken languages (e.g., "French (C1)")
+    "languages": [                      // spoken languages
+      {{
+        "name": string,                 // e.g. "French"
+        "level": string | null          // e.g. "Native", "C1", "Fluent"
+      }}
+    ]
   }},
 
   "professional_experiences": [         // jobs, internships, freelance
@@ -199,7 +239,7 @@ def generate_with_gemini(prompt: str) -> str:
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.1,
-            max_output_tokens=2048,
+            max_output_tokens=8192,
         ),
     )
     # Selon la version de la lib, le texte peut être accessible via .text ou parts
@@ -219,12 +259,51 @@ def generate_with_gemini(prompt: str) -> str:
         raise RuntimeError(f"Réponse Gemini inattendue : {response!r}")
 
 
-def parse_cv_with_gemini(cv_text: str) -> Dict[str, Any]:
+def extract_text_from_file(file_content: bytes, filename: str) -> str:
+    """
+    Extrait le texte brut depuis un fichier binaire (PDF, DOCX) ou texte.
+    """
+    filename = filename.lower()
+    text = ""
+
+    if filename.endswith(".pdf"):
+        try:
+            import io
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(file_content))
+            for page in reader.pages:
+                extracted = page.extract_text()
+                if extracted:
+                    text += extracted + "\n"
+        except ImportError:
+            raise ImportError("La librairie 'pypdf' est manquante. Installez-la avec : pip install pypdf")
+        except Exception as e:
+            raise ValueError(f"Erreur lors de la lecture du PDF : {e}")
+
+    elif filename.endswith(".docx"):
+        try:
+            import io
+            from docx import Document
+            doc = Document(io.BytesIO(file_content))
+            text = "\n".join([p.text for p in doc.paragraphs])
+        except ImportError:
+            raise ImportError("La librairie 'python-docx' est manquante. Installez-la avec : pip install python-docx")
+        except Exception as e:
+            raise ValueError(f"Erreur lors de la lecture du DOCX : {e}")
+
+    else:
+        # Tentative de lecture en texte brut
+        text = file_content.decode("utf-8", errors="ignore")
+
+    return text
+
+
+def parse_cv_with_gemini(cv_text: str, current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     High-level function: takes raw CV text, sends it to Gemini,
     parses the JSON, and returns a Python dict.
     """
-    prompt = build_cv_parsing_prompt(cv_text)
+    prompt = build_cv_parsing_prompt(cv_text, current_profile)
     raw_output = generate_with_gemini(prompt)
     parsed_json = extract_json_from_output(raw_output)
     return parsed_json

@@ -83,8 +83,16 @@ const OffreScore = () => {
       setLoading(true);
       
       // 1. Charger l'offre
-      const jobData = await fetchJobById(jobId);
-      setJob(jobData);
+      let jobData: Job | null = null;
+      const localJobs: Job[] = JSON.parse(localStorage.getItem("JOBSWIPE_LOCAL_IMPORTED_JOBS") || "[]");
+      const localJob = localJobs.find(j => j.id === jobId);
+
+      if (localJob) {
+        jobData = localJob;
+      } else {
+        jobData = await fetchJobById(jobId);
+      }
+      setJob(jobData!);
 
       // 2. Charger le profil complet
       const { data: { user } } = await supabase.auth.getUser();
@@ -101,7 +109,7 @@ const OffreScore = () => {
       // 3. Préparer les données
       const profile = { ...profileData } as Profile; // Cast simple car la structure correspond
       const cvData = formatProfileForBackend(profile);
-      const offerData = formatJobForBackend(jobData);
+      const offerData = formatJobForBackend(jobData!);
 
       // 4. Appeler l'API de scoring
       const API_URL = import.meta.env.VITE_API_URL;

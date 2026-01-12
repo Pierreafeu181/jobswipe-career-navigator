@@ -409,7 +409,15 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
         return new Date(bSwipe.created_at).getTime() - new Date(aSwipe.created_at).getTime();
       });
 
-      setLikedJobs(sortedJobs);
+      // Récupérer les offres locales
+      const localJobs: Job[] = JSON.parse(localStorage.getItem("JOBSWIPE_LOCAL_IMPORTED_JOBS") || "[]");
+      
+      // Fusionner et trier par date de création (plus récent en premier)
+      const allJobs = [...localJobs, ...sortedJobs].sort((a, b) => {
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+
+      setLikedJobs(allJobs);
     } catch (err) {
       console.error("Error loading liked jobs:", err);
       setError("Une erreur inattendue s'est produite");
@@ -748,37 +756,37 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                   }
                   const parsedJob = await res.json();
                   
-                  // 2. Créer le job dans Supabase
+                  // 2. Créer le job LOCALEMENT (localStorage) au lieu de Supabase
                   
                   // On prépare la description et on l'ajoute au JSON raw pour être sûr de la conserver
                   const descriptionContent = parsedJob.missions?.join('\n') || offerData.description;
                   const rawData = { 
                     ...parsedJob, 
                     description: descriptionContent,
-                    source: "extension_import" 
+                    source: "extension_import_local" 
                   };
 
-                  const { data: jobData, error: jobError } = await (supabase as any)
-                      .from("jobs")
-                      .insert({
-                          title: parsedJob.title || offerData.title,
-                          company: parsedJob.company_name || offerData.company || "Entreprise inconnue",
-                          location: parsedJob.location || "Non spécifié",
-                          contract_type: parsedJob.contract_type,
-                          // description: descriptionContent, // Retiré pour éviter l'erreur PGRST204 si la colonne n'existe pas
-                          raw: rawData,
-                          redirect_url: offerData.url,
-                          // source: "extension_import" // Retiré pour éviter l'erreur PGRST204
-                      })
-                      .select()
-                      .single();
-                      
-                  if (jobError) throw jobError;
+                  const newJob: any = {
+                    id: crypto.randomUUID ? crypto.randomUUID() : `local-${Date.now()}`,
+                    title: parsedJob.title || offerData.title,
+                    company: parsedJob.company_name || offerData.company || "Entreprise inconnue",
+                    location: parsedJob.location || "Non spécifié",
+                    contract_type: parsedJob.contract_type,
+                    description: descriptionContent,
+                    raw: rawData,
+                    redirect_url: offerData.url,
+                    created_at: new Date().toISOString(),
+                    secteur: parsedJob.secteur,
+                    niveau: parsedJob.seniority_level,
+                    famille: parsedJob.famille
+                  };
                   
-                  // 3. Liker l'offre
-                  await saveSwipeToSupabase("like", jobData.id, false);
+                  // 3. Sauvegarder dans le localStorage
+                  const localJobs = JSON.parse(localStorage.getItem("JOBSWIPE_LOCAL_IMPORTED_JOBS") || "[]");
+                  localJobs.push(newJob);
+                  localStorage.setItem("JOBSWIPE_LOCAL_IMPORTED_JOBS", JSON.stringify(localJobs));
                   
-                  toast({ description: "Offre importée et ajoutée aux likes !" });
+                  toast({ description: "Offre importée localement et ajoutée aux likes !" });
                   
                   // Recharger les likes si on est sur l'onglet liked
                   setActiveTab("liked");
@@ -809,14 +817,29 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
     const jobId = confirmDeleteId;
     setConfirmDeleteId(null);
 
+    // Vérifier si c'est une offre locale
+    const localJobs: any[] = JSON.parse(localStorage.getItem("JOBSWIPE_LOCAL_IMPORTED_JOBS") || "[]");
+    const localIndex = localJobs.findIndex(j => j.id === jobId);
+
+    if (localIndex !== -1) {
+      localJobs.splice(localIndex, 1);
+      localStorage.setItem("JOBSWIPE_LOCAL_IMPORTED_JOBS", JSON.stringify(localJobs));
+      toast({ description: "Offre locale retirée avec succès." });
+      await Promise.all([
+        loadLikedJobs(),
+        loadSuperlikedJobs()
+      ]);
+      return;
+    }
+
     try {
       const { error } = await (supabase as any)
         .from("swipes")
-        .delete()
+        .update({ direction: "dislike", is_superlike: false })
         .match({ user_id: userId, job_id: jobId });
 
       if (error) {
-        console.error("Error deleting swipe:", error);
+        console.error("Error updating swipe:", error);
         toast({ variant: "destructive", description: "Erreur lors de la suppression." });
       } else {
         toast({ description: "Offre retirée avec succès." });

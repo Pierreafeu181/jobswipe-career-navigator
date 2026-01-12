@@ -3,8 +3,8 @@ import sys
 import base64
 import traceback
 import time
-from typing import Dict, Any
-from fastapi import FastAPI, HTTPException, Request
+from typing import Dict, Any, Optional
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -119,6 +119,29 @@ async def parse_job(request: JobTextRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/parse-cv-upload")
+async def parse_cv_upload(
+    file: UploadFile = File(...),
+    current_profile: Optional[str] = Form(None)
+):
+    """
+    Reçoit un fichier (PDF ou DOCX), extrait le texte et retourne le profil structuré JSON.
+    """
+    try:
+        content = await file.read()
+        profile_data = None
+        if current_profile:
+            try:
+                profile_data = json.loads(current_profile)
+            except:
+                pass # Ignore if invalid JSON
+        
+        result = service.parse_cv_document(content, file.filename, current_profile=profile_data)
+        return result
+    except Exception as e:
+        print(f"ERREUR dans /parse-cv-upload : {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'analyse du CV : {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

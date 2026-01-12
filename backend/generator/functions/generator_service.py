@@ -9,14 +9,14 @@ load_dotenv()
 
 # Imports robustes (gère l'exécution directe ou via package)
 try:
-    from .cv_parsing import parse_cv_with_gemini
+    from .cv_parsing import parse_cv_with_gemini, extract_text_from_file
     from .job_offer_parser import parse_job_offer_gemini
     from .compatibility import score_profile_with_gemini, compute_heuristic_score
     from .experience_generator import generate_full_cv_content
     from .cv_generator import generate_cv_html, convert_html_to_pdf
     from .cover_letter_generator import generate_personalized_cover_letter_docx_and_pdf
 except ImportError:
-    from cv_parsing import parse_cv_with_gemini
+    from cv_parsing import parse_cv_with_gemini, extract_text_from_file
     from job_offer_parser import parse_job_offer_gemini
     from compatibility import score_profile_with_gemini, compute_heuristic_score
     from experience_generator import generate_full_cv_content
@@ -174,3 +174,16 @@ class JobSwipeGeneratorService:
         Parse uniquement le texte d'une offre d'emploi.
         """
         return parse_job_offer_gemini(offer_text)
+
+    def parse_only_cv(self, cv_text: str, current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Parse uniquement le texte d'un CV.
+        """
+        return parse_cv_with_gemini(cv_text, current_profile)
+
+    def parse_cv_document(self, file_content: bytes, filename: str, current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Parse un CV depuis un fichier (PDF, DOCX, TXT).
+        """
+        cv_text = extract_text_from_file(file_content, filename)
+        return self.parse_only_cv(cv_text, current_profile)

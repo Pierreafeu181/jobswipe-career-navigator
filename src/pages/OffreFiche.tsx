@@ -21,6 +21,15 @@ const OffreFiche = () => {
 
   const loadJob = async (jobId: string) => {
     try {
+      // Vérifier d'abord dans le stockage local
+      const localJobs: Job[] = JSON.parse(localStorage.getItem("JOBSWIPE_LOCAL_IMPORTED_JOBS") || "[]");
+      const localJob = localJobs.find(j => j.id === jobId);
+      
+      if (localJob) {
+        setJob(localJob);
+        return;
+      }
+
       const data = await fetchJobById(jobId);
       setJob(data);
     } catch (error) {
