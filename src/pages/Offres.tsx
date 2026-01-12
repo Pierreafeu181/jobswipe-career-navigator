@@ -719,6 +719,8 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
               window.removeEventListener("message", handler);
               const offerData = event.data.payload;
               
+              console.log("📦 [JobSwipe Import] Données reçues de l'extension :", offerData);
+              
               if (!offerData) {
                   console.warn("Aucune donnée d'offre reçue de l'extension.");
                   toast({ variant: "destructive", description: "Aucune offre scannée trouvée dans l'extension." });
@@ -819,15 +821,14 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
       } else {
         toast({ description: "Offre retirée avec succès." });
         
-        // Mise à jour de l'état local
-        if (activeTab === "liked") {
-          setLikedJobs((prev) => prev.filter((job) => job.id !== jobId));
-        } else if (activeTab === "superliked") {
-          setSuperlikedJobs((prev) => prev.filter((job) => job.id !== jobId));
-        }
+        // Mise à jour de l'état local : on recharge les deux listes pour garantir la cohérence
+        await Promise.all([
+          loadLikedJobs(),
+          loadSuperlikedJobs()
+        ]);
         
         // Recharger le compteur de likes du jour
-        loadLikesToday();
+        await loadLikesToday();
       }
     } catch (err) {
       console.error("Error in executeRemoveSwipe:", err);

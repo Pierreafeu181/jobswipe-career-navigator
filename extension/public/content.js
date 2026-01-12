@@ -294,13 +294,20 @@ const findAndFill = async (data) => {
 };
 
 const scanJobOffer = () => {
-    const title = document.querySelector('h1')?.innerText || document.title;
+    // 1. Titre : H1 > OG:Title > Title
+    let title = document.querySelector('h1')?.innerText;
+    if (!title) title = document.querySelector('meta[property="og:title"]')?.content;
+    if (!title) title = document.title;
+
     // Nettoyage basique du texte pour éviter d'envoyer trop de bruit
-    const description = document.body.innerText.replace(/\s+/g, ' ').substring(0, 10000); 
+    const description = (document.body.innerText || "").replace(/\s+/g, ' ').substring(0, 10000).trim(); 
     const url = window.location.href;
-    const company = document.querySelector('meta[property="og:site_name"]')?.content || "";
     
-    return { title, description, url, company };
+    // 3. Entreprise : OG:Site_Name > Meta Author > Fallback vide
+    let company = document.querySelector('meta[property="og:site_name"]')?.content;
+    if (!company) company = document.querySelector('meta[name="author"]')?.content;
+    
+    return { title: title || "", description, url, company: company || "" };
 };
 
 // Écouteur de messages venant du Popup

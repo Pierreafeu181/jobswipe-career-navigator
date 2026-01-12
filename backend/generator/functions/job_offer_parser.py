@@ -20,7 +20,7 @@ import re
 from typing import Dict, Any
 
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 
 load_dotenv()
 
@@ -38,8 +38,7 @@ if not GEMINI_API_KEY:
         "Définis GEMINI_API_KEY avant de lancer le script."
     )
 
-genai.configure(api_key=GEMINI_API_KEY)
-_gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 # ============================================================================
@@ -159,7 +158,10 @@ def generate_with_gemini(prompt: str) -> str:
     """
     Envoie un prompt à Gemini et renvoie le texte généré.
     """
-    response = _gemini_model.generate_content(prompt)
+    response = _client.models.generate_content(
+        model=GEMINI_MODEL_NAME,
+        contents=prompt
+    )
     # response.text contient généralement la réponse combinée
     return response.text.strip()
 

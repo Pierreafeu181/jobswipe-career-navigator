@@ -124,6 +124,20 @@ const Popup: React.FC = () => {
     }
   };
 
+  // Fonction pour trouver la frame qui contient le plus de texte (pour le scan d'offre)
+  const findBestContentFrame = async (tabId: number) => {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        func: () => document.body ? document.body.innerText.length : 0
+      });
+      const best = results.reduce((max, curr) => (curr.result || 0) > (max.result || 0) ? curr : max, results[0]);
+      return best?.frameId || 0;
+    } catch (e) {
+      return 0; // Fallback sur la frame principale
+    }
+  };
+
   const handleAnalyze = async () => {
     if (apiKey) {
       setStatus("IA : Analyse du formulaire...");
@@ -354,7 +368,9 @@ const Popup: React.FC = () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab?.id) {
-        chrome.tabs.sendMessage(tab.id, { action: "scan_job_offer" }, (response) => {
+        // On cible la frame qui contient le plus de texte (l'offre)
+        const frameId = await findBestContentFrame(tab.id);
+        chrome.tabs.sendMessage(tab.id, { action: "scan_job_offer" }, { frameId }, (response) => {
           if (chrome.runtime.lastError || !response) {
              setStatus("Erreur scan");
              setStatusType("error");

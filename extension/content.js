@@ -380,6 +380,7 @@ window.addEventListener("message", (event) => {
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
         chrome.storage.local.get(['scanned_job_offer'], (result) => {
             if (result.scanned_job_offer) {
+                console.log("📤 [JobSwipe Extension] Envoi de l'offre au site :", result.scanned_job_offer);
                 window.postMessage({
                     type: "JOBSWIPE_OFFER_DATA",
                     payload: result.scanned_job_offer

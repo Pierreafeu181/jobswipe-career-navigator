@@ -3,7 +3,7 @@ import os
 import re
 from typing import Dict, Any, List
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 
 load_dotenv()
 
@@ -17,15 +17,17 @@ GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 if not GEMINI_API_KEY:
     raise RuntimeError("GEMINI_API_KEY manquante.")
 
-genai.configure(api_key=GEMINI_API_KEY)
-_gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+_client = genai.Client(api_key=GEMINI_API_KEY)
 
 # ============================================================================
 # 2. UTILS
 # ============================================================================
 
 def _generate_with_gemini(prompt: str) -> str:
-    response = _gemini_model.generate_content(prompt)
+    response = _client.models.generate_content(
+        model=GEMINI_MODEL_NAME,
+        contents=prompt
+    )
     return response.text.strip()
 
 def _extract_json(output: str) -> Dict[str, Any]:
