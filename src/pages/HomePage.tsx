@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session } from "@supabase/supabase-js";
 import { LogoHeader } from "@/components/LogoHeader";
@@ -12,6 +13,10 @@ interface HomePageProps {
 
 const HomePage = ({ session }: HomePageProps) => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    console.log("VITE_API_URL:", import.meta.env.VITE_API_URL);
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
