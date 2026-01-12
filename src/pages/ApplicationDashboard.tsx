@@ -17,6 +17,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/lib/supabaseClient";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { toast } from "sonner";
 
 type ApplicationStatus = "liked" | "superliked" | "applied" | "interview" | "job_offer" | "accepted" | "rejected";
 
@@ -243,16 +244,30 @@ const ApplicationDashboard: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!itemToDelete) return;
-    
-    setApplications(prev => prev.filter(a => a.id !== itemToDelete));
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-        await supabase.from('swipes').delete().eq('user_id', user.id).eq('job_id', itemToDelete);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Vous n'êtes pas connecté.");
+        return;
+      }
+
+      const { error } = await supabase.from('swipes').delete().eq('user_id', user.id).eq('job_id', itemToDelete);
+
+      if (error) {
+        throw error;
+      }
+
+      setApplications(prev => prev.filter(a => a.id !== itemToDelete));
+      toast.success("Candidature supprimée avec succès.");
+
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast.error("Erreur lors de la suppression de la candidature.");
+    } finally {
+      setShowDeleteModal(false);
+      setItemToDelete(null);
     }
-    
-    setShowDeleteModal(false);
-    setItemToDelete(null);
   };
 
   const confirmStatusChange = () => {
