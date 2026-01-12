@@ -16,7 +16,8 @@ import re
 from typing import Dict, Any
 
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 load_dotenv()
 
@@ -29,8 +30,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 env_model = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
 GEMINI_MODEL_NAME = "gemini-1.5-flash" if "2.5" in env_model else env_model
 
-genai.configure(api_key=GEMINI_API_KEY)
-_gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 # ============================================================================
@@ -197,9 +197,10 @@ def generate_with_gemini(prompt: str) -> str:
     """
     Call Gemini with the given prompt and return the raw text output.
     """
-    response = _gemini_model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
+    response = _client.models.generate_content(
+        model=GEMINI_MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
             temperature=0.2,
             max_output_tokens=2048,
         ),

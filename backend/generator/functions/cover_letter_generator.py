@@ -41,7 +41,7 @@ import re
 import datetime
 
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -61,8 +61,7 @@ try:
 except ImportError:
     raise ImportError("La librairie 'xhtml2pdf' est manquante. Installez-la avec : pip install xhtml2pdf")
 
-genai.configure(api_key=GEMINI_API_KEY)
-_gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 # ============================================================================
@@ -281,7 +280,10 @@ def generate_letter_structure_with_gemini(
 
     # 2. Appel 1 : Header & Meta
     prompt_header = build_header_prompt(offer_parsed, cv_parsed, city_hint, date_hint, reference)
-    resp_header = _gemini_model.generate_content(prompt_header)
+    resp_header = _client.models.generate_content(
+        model=GEMINI_MODEL_NAME,
+        contents=prompt_header
+    )
     json_header = extract_json_from_output(resp_header.text)
 
     # Récupération de l'objet pour le contexte du body
@@ -289,7 +291,10 @@ def generate_letter_structure_with_gemini(
 
     # 3. Appel 2 : Body
     prompt_body = build_body_prompt(offer_parsed, cv_parsed, gender_label, objet_line)
-    resp_body = _gemini_model.generate_content(prompt_body)
+    resp_body = _client.models.generate_content(
+        model=GEMINI_MODEL_NAME,
+        contents=prompt_body
+    )
     json_body = extract_json_from_output(resp_body.text)
 
     # 4. Fusion

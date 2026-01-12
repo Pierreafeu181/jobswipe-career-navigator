@@ -71,6 +71,11 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
+  // Désactiver le cache pour le développement local (localhost)
+  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+    return;
+  }
+
   // On ignore les appels API (Supabase, /api, etc.) pour ne pas casser la logique métier
   if (
     url.hostname.includes("supabase.co") ||
@@ -145,4 +150,3 @@ self.addEventListener("fetch", (event) => {
     })()
   );
 });
-
