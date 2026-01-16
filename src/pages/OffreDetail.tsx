@@ -36,6 +36,7 @@ const OffreDetail = () => {
   const [showDocuments, setShowDocuments] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
   const [showConfirmUnapply, setShowConfirmUnapply] = useState(false);
+  const [isSuperlike, setIsSuperlike] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -118,13 +119,14 @@ const OffreDetail = () => {
       if (user && id) {
         const { data } = await supabase
           .from('swipes')
-          .select('status')
+          .select('status, is_superlike')
           .eq('user_id', user.id)
           .eq('job_id', id)
           .maybeSingle();
         
         if (data) {
           setApplicationStatus(data.status || 'liked');
+          setIsSuperlike(data.is_superlike);
         }
       }
     };
@@ -667,6 +669,18 @@ const OffreDetail = () => {
     }
   };
 
+  const handleBack = () => {
+    if (applicationStatus === 'liked' || applicationStatus === 'superliked') {
+      navigate('/jobswipe/offres', { 
+        state: { 
+          initialView: isSuperlike ? 'superliked' : 'liked' 
+        } 
+      });
+    } else {
+      navigate(-1);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -711,7 +725,7 @@ const OffreDetail = () => {
       
       {/* Bouton Retour - Fixe en haut à gauche */}
       <button
-        onClick={() => navigate(-1)}
+        onClick={handleBack}
         className="fixed top-4 left-4 z-50 w-12 h-12 rounded-full bg-white/80 backdrop-blur-lg border border-white/50 shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white/95 hover:shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
         title="Retour"
         aria-label="Retour"

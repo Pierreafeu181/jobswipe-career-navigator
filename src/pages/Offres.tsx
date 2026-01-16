@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SecondaryButton } from "@/components/SecondaryButton";
@@ -80,10 +80,20 @@ const JobScore = ({ job, cvData }: { job: Job; cvData: any }) => {
 // Composant pour la page de swipe des offres (JobswipeOffers)
 const JobswipeOffers = ({ userId }: OffresProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
   // State pour l'onglet actif
   const [activeTab, setActiveTab] = useState<"all" | "liked" | "superliked">("all");
+
+  useEffect(() => {
+    if (location.state?.initialView) {
+      const { initialView } = location.state;
+      if (initialView === 'liked' || initialView === 'superliked') {
+        setActiveTab(initialView);
+      }
+    }
+  }, [location.state]);
 
   // States pour "Toutes les offres"
   const [jobs, setJobs] = useState<Job[]>([]);

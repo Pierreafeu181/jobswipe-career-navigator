@@ -122,6 +122,7 @@ const MarkdownText = ({ text, className }: { text: string, className?: string })
 
 const ApplicationDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [applications, setApplications] = useState<Application[]>(initialApplications);
   const [activeTab, setActiveTab] = useState<"overview" | "offers" | "applications" | "analyst">("overview");
   const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
@@ -145,6 +146,16 @@ const ApplicationDashboard: React.FC = () => {
   const [selectedFeedbackApp, setSelectedFeedbackApp] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (location.state?.initialView) {
+      const { initialView } = location.state;
+      if (initialView === 'liked' || initialView === 'superliked') {
+        setActiveTab('offers');
+        setExpandedColumns(prev => ({ ...prev, [initialView]: true }));
+      }
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const fetchApplications = async () => {
