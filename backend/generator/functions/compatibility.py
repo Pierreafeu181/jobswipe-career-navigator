@@ -105,7 +105,6 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
 def build_compat_prompt(offer_parsed: Dict[str, Any], cv_parsed: Dict[str, Any]) -> str:
     """
     Construis le prompt envoyé à Gemini pour calculer le score + conseils.
-    Prompt en anglais pour réduire l'ambiguïté.
     """
     offer_json = json.dumps(offer_parsed, ensure_ascii=False, indent=2)
     cv_json = json.dumps(cv_parsed, ensure_ascii=False, indent=2)
@@ -178,6 +177,7 @@ You MUST return a JSON object with EXACTLY these fields:
 }}
 
 VERY IMPORTANT RULES:
+- The response for all string fields in the JSON output (summary, strengths, gaps, etc.) MUST be in French.
 - You MUST return ONLY the JSON object, with no markdown or extra text.
 - Each score must be in the range [0,100].
 - Do NOT include comments in the JSON output.

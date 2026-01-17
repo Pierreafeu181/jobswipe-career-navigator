@@ -97,8 +97,7 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
 def build_cv_parsing_prompt(cv_text: str, current_profile: Optional[Dict[str, Any]] = None) -> str:
     """
     Build the prompt sent to Gemini to parse the CV into a structured JSON.
-
-    Prompt en anglais pour limiter les ambiguïtés.
+    The output will be in French.
     """
     context_instruction = ""
     if current_profile:
@@ -212,6 +211,7 @@ with EXACTLY these names:
 }}
 
 Rules you MUST follow:
+- All string values in the JSON output MUST be in French. This includes descriptions, titles, summaries, etc.
 - Return ONLY the JSON object — no markdown, no backticks, no comments.
 - If a field is unknown, set it to null (for scalars) or [] (for lists).
 - Always include all top-level keys (even if empty).
