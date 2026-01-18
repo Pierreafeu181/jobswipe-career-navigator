@@ -3,7 +3,7 @@ import sys
 import base64
 import traceback
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ from pydantic import BaseModel
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from functions.generator_service import JobSwipeGeneratorService
+from functions.matcher_engine import batch_match_offers
 
 app = FastAPI(title="JobSwipe Generator API", version="1.0")
 
@@ -47,6 +48,10 @@ class ApplicationRequest(BaseModel):
     cv_data: Dict[str, Any]
     offer_data: Dict[str, Any]
     gender: str = "M"  # "M" pour masculin, "F" pour féminin
+
+class BatchScoreRequest(BaseModel):
+    cv_data: Dict[str, Any]
+    offers: List[Dict[str, Any]]
 
 class JobTextRequest(BaseModel):
     text: str
@@ -113,14 +118,41 @@ async def score_application(request: ApplicationRequest):
 @app.post("/score-fast")
 async def score_fast(request: ApplicationRequest):
     """
-    Calcule un score rapide (heuristique) pour l'affichage en liste.
+    Calcule un score rapide (NLP) pour l'affichage en liste.
     Retourne un entier entre 0 et 100.
     """
     try:
-        score = service.compute_fast_score(request.cv_data, request.offer_data)
+        # Utilisation de batch_match_offers pour un seul élément pour garantir la cohérence
+        offer_id = "current"
+        offers_dict = {offer_id: request.offer_data}
+        scores = batch_match_offers(request.cv_data, offers_dict)
+        score = scores.get(offer_id, 0)
         return {"score": score}
     except Exception as e:
         print(f"ERREUR 500 dans /score-fast : {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/score-batch")
+async def score_batch(request: BatchScoreRequest):
+    """
+    Calcule les scores pour une liste d'offres (NLP).
+    Retourne un dictionnaire {offer_id: score}.
+    """
+    try:
+        scores = {}
+        # Conversion de la liste en dictionnaire pour le moteur NLP {id: data}
+        offers_dict = {
+            offer.get("id"): offer 
+            for offer in request.offers 
+            if offer.get("id")
+        }
+        
+        # Utilisation du moteur NLP (spaCy) pour le matching sémantique
+        scores = batch_match_offers(request.cv_data, offers_dict)
+        
+        return {"scores": scores}
+    except Exception as e:
+        print(f"ERREUR 500 dans /score-batch : {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/parse-job")

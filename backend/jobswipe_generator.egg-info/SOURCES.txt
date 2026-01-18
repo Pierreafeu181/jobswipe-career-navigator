@@ -12,6 +12,7 @@ generator/functions/cv_parsing.py
 generator/functions/experience_generator.py
 generator/functions/generator_service.py
 generator/functions/job_offer_parser.py
+generator/functions/matcher_engine.py
 generator/functions/tempCodeRunnerFile.py
 jobswipe_generator.egg-info/PKG-INFO
 jobswipe_generator.egg-info/SOURCES.txt

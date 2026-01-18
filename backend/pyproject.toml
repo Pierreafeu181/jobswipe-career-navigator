@@ -13,7 +13,11 @@ dependencies = [
     "python-docx",
     "xhtml2pdf",
     "pyhere",
-    "pypdf"
+    "pypdf",
+    "spacy>=3.8.11",
+    "scikit-learn>=1.7.2",
+    "numpy>=2.2.6",
+    "pip>=25.3",
 ]
 
 [build-system]

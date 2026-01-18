@@ -13,3 +13,7 @@ Requires-Dist: python-docx
 Requires-Dist: xhtml2pdf
 Requires-Dist: pyhere
 Requires-Dist: pypdf
+Requires-Dist: spacy>=3.8.11
+Requires-Dist: scikit-learn>=1.7.2
+Requires-Dist: numpy>=2.2.6
+Requires-Dist: pip>=25.3

@@ -219,6 +219,7 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
   // Charger les données CV de l'utilisateur (requis pour le scoring)
   useEffect(() => {
     const loadUserCv = async () => {
+      console.log("👤 [JobSwipe] Chargement du profil utilisateur pour le scoring...");
       try {
         const { data, error } = await (supabase as any)
           .from("profiles")
@@ -229,60 +230,53 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
         if (data) {
           // Transformation des données de la table 'profiles' au format attendu par le backend
           const formattedCvData = {
+            ...data, // Inclure toutes les données brutes du profil
             skills: {
               hard_skills: data.hard_skills || [],
               soft_skills: data.soft_skills || [],
+              languages: data.languages || [],
             },
             professional_experiences: (data.experiences || []).map((exp: any) => ({
               title: exp.role || "", 
               company: exp.company || "",
-              description: exp.description || ""
+              description: exp.description || "",
+              start_date: exp.startDate || "",
+              end_date: exp.endDate || "",
+              ...exp
             })),
+            education: data.education || [],
             raw_summary: data.target_role || "",
           };
           setUserCvData(formattedCvData);
+          console.log("✅ [JobSwipe] Profil chargé avec succès.");
+        } else {
+          console.warn("⚠️ [JobSwipe] Aucun profil trouvé.");
         }
       } catch (err) {
-        console.error("Erreur chargement CV:", err);
+        console.error("❌ [JobSwipe] Erreur chargement CV:", err);
       }
     };
     loadUserCv();
   }, [userId]);
 
-  // Calculer le score pour l'offre courante (Swipe view)
+  // Mettre à jour le score courant basé sur l'offre affichée (qui a déjà son score calculé)
   useEffect(() => {
     const currentOffer = jobs[currentIndex];
-    if (!currentOffer || !userCvData) {
+    if (currentOffer && (currentOffer as any).score !== undefined) {
+      setCurrentScore((currentOffer as any).score);
+    } else {
       setCurrentScore(null);
-      return;
     }
-
-    const fetchCurrentScore = async () => {
-      try {
-        const API_URL = import.meta.env.VITE_API_URL;
-        const res = await fetch(`${API_URL}/score-fast`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cv_data: userCvData, offer_data: { ...currentOffer, ...(currentOffer.raw || {}) } }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setCurrentScore(data.score);
-        }
-      } catch (e) {
-        console.error("Erreur fetch score courant:", e);
-      }
-    };
-    fetchCurrentScore();
-  }, [currentIndex, jobs, userCvData]);
+  }, [currentIndex, jobs]);
 
   // Charger les offres non swipées au montage si onglet "all"
   useEffect(() => {
-    if (activeTab === "all") {
+    // On attend que userCvData soit chargé pour pouvoir trier par score
+    if (activeTab === "all" && userCvData) {
       loadUnswipedJobs();
       loadLikesToday();
     }
-  }, [userId, activeTab]);
+  }, [userId, activeTab, userCvData]);
 
   // Charger les offres likées quand on passe à l'onglet "liked"
   useEffect(() => {
@@ -323,25 +317,34 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
   }, [limitReached, activeTab]);
 
   const loadUnswipedJobs = async () => {
+    console.log("🔄 [JobSwipe] Démarrage du chargement des offres...");
     try {
+      if (!userCvData) {
+        console.log("⚠️ [JobSwipe] Pas de données CV utilisateur, annulation.");
+        return; // Sécurité supplémentaire
+      }
+
       setLoading(true);
       setError(null);
 
       // Récupérer les job_id déjà swipés par l'utilisateur (tous les temps, pas seulement aujourd'hui)
+      console.log("📡 [JobSwipe] Récupération de l'historique des swipes...");
       const { data: swipesData, error: swipesError } = await (supabase as any)
         .from("swipes")
         .select("job_id")
         .eq("user_id", userId);
 
       if (swipesError) {
-        console.error("Error fetching swipes:", swipesError);
+        console.error("❌ [JobSwipe] Erreur chargement swipes:", swipesError);
         setError("Erreur lors du chargement des swipes");
         return;
       }
 
       const swipedJobIds = swipesData?.map((swipe) => swipe.job_id) || [];
-
+      console.log(`✅ [JobSwipe] ${swipedJobIds.length} offres déjà swipées trouvées.`);
+      
       // Récupérer les jobs non swipés en excluant ceux déjà swipés dans la requête
+      console.log("📡 [JobSwipe] Récupération des offres récentes depuis Supabase...");
       let query = (supabase as any)
         .from("jobs")
         .select("*")
@@ -351,7 +354,7 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
       const { data: jobsData, error: jobsError } = await query;
 
       if (jobsError) {
-        console.error("Error fetching jobs:", jobsError);
+        console.error("❌ [JobSwipe] Erreur chargement jobs:", jobsError);
         setError("Erreur lors du chargement des offres");
         return;
       }
@@ -359,12 +362,57 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
       // Filtrer côté JS pour n'afficher que les jobs non swipés (tous les temps)
       const unswipedJobs = (jobsData || []).filter(
         (job) => !swipedJobIds.includes(job.id)
-      ).slice(0, 20); // Limiter à 20 après filtrage
+      );
+      console.log(`✅ [JobSwipe] ${unswipedJobs.length} offres restantes après filtrage des swipes.`);
 
-      setJobs(unswipedJobs);
+      // --- CALCUL DES SCORES ET TRI ---
+      let sortedJobs = unswipedJobs;
+      
+      try {
+        console.log("🧠 [JobSwipe] Appel API /score-batch pour calculer la compatibilité...");
+        const API_URL = import.meta.env.VITE_API_URL;
+        // Préparation des données pour le batch scoring (Titre + Description uniquement pour NLP)
+        const offersPayload = unswipedJobs.map(j => ({
+          id: j.id,
+          title: j.title,
+          description: j.description || j.raw?.description || ""
+        }));
+        console.log("📤 [JobSwipe] Payload envoyé à /score-batch :", { cv_data: userCvData, offers: offersPayload });
+
+        const res = await fetch(`${API_URL}/score-batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cv_data: userCvData, offers: offersPayload })
+        });
+
+        if (res.ok) {
+          const { scores } = await res.json();
+          console.log("✅ [JobSwipe] Scores reçus :", scores);
+          // Associer le score à chaque job et trier
+          sortedJobs = unswipedJobs.map(job => ({
+            ...job,
+            score: scores[job.id] || 0
+          })).sort((a, b) => b.score - a.score); // Tri décroissant (plus compatible en premier)
+          
+          console.log("📊 [JobSwipe] Offres triées par score de compatibilité.");
+          if (sortedJobs.length > 0) {
+             console.log(`🏆 [JobSwipe] Top offre: "${sortedJobs[0].title}" (${sortedJobs[0].score}%)`);
+          }
+        } else {
+            console.warn("⚠️ [JobSwipe] Erreur API score-batch:", res.status, res.statusText);
+        }
+      } catch (scoreErr) {
+        console.error("❌ [JobSwipe] Erreur lors du scoring batch:", scoreErr);
+        // En cas d'erreur, on garde l'ordre par défaut (date)
+      }
+
+      // On ne garde que les 20 premiers APRES le tri par pertinence
+      const finalJobs = sortedJobs.slice(0, 20);
+      console.log(`✨ [JobSwipe] Affichage de ${finalJobs.length} offres.`);
+      setJobs(finalJobs);
       setCurrentIndex(0); // Reset l'index quand on charge de nouvelles offres
     } catch (err) {
-      console.error("Error loading jobs:", err);
+      console.error("❌ [JobSwipe] Erreur générale loading jobs:", err);
       setError("Une erreur inattendue s'est produite");
     } finally {
       setLoading(false);
