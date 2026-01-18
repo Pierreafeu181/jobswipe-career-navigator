@@ -90,12 +90,12 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
   const { toast } = useToast();
   
   // State pour l'onglet actif
-  const [activeTab, setActiveTab] = useState<"all" | "liked" | "superliked">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "liked" | "superliked" | "imported">("all");
 
   useEffect(() => {
     if (location.state?.initialView) {
       const { initialView } = location.state;
-      if (initialView === 'liked' || initialView === 'superliked') {
+      if (initialView === 'liked' || initialView === 'superliked' || initialView === 'imported') {
         setActiveTab(initialView);
       }
     }
@@ -113,6 +113,10 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
   // States pour "Offres superlikées"
   const [superlikedJobs, setSuperlikedJobs] = useState<Job[]>([]);
   const [loadingSuperliked, setLoadingSuperliked] = useState(false);
+
+  // States pour "Offres importées"
+  const [importedJobs, setImportedJobs] = useState<Job[]>([]);
+  const [loadingImported, setLoadingImported] = useState(false);
 
   // States communs
   const [loading, setLoading] = useState(true);
@@ -298,6 +302,13 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
     }
   }, [activeTab, userId]);
 
+  // Charger les offres importées quand on passe à l'onglet "imported"
+  useEffect(() => {
+    if (activeTab === "imported") {
+      loadImportedJobs();
+    }
+  }, [activeTab]);
+
   // Compte à rebours jusqu'à minuit quand la limite est atteinte
   useEffect(() => {
     if (!limitReached) return;
@@ -473,20 +484,28 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
         return new Date(bSwipe.created_at).getTime() - new Date(aSwipe.created_at).getTime();
       });
 
-      // Récupérer les offres locales
-      const localJobs: Job[] = JSON.parse(localStorage.getItem("JOBSWIPE_LOCAL_IMPORTED_JOBS") || "[]");
-      
-      // Fusionner et trier par date de création (plus récent en premier)
-      const allJobs = [...localJobs, ...sortedJobs].sort((a, b) => {
-        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-      });
-
-      setLikedJobs(allJobs);
+      setLikedJobs(sortedJobs);
     } catch (err) {
       console.error("Error loading liked jobs:", err);
       setError("Une erreur inattendue s'est produite");
     } finally {
       setLoadingLiked(false);
+    }
+  };
+
+  const loadImportedJobs = () => {
+    try {
+      setLoadingImported(true);
+      const localJobs: Job[] = JSON.parse(localStorage.getItem("JOBSWIPE_LOCAL_IMPORTED_JOBS") || "[]");
+      // Trier par date de création (plus récent en premier)
+      const sortedJobs = localJobs.sort((a, b) => {
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+      setImportedJobs(sortedJobs);
+    } catch (err) {
+      console.error("Error loading imported jobs:", err);
+    } finally {
+      setLoadingImported(false);
     }
   };
 
@@ -870,11 +889,11 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                   localJobs.push(newJob);
                   localStorage.setItem("JOBSWIPE_LOCAL_IMPORTED_JOBS", JSON.stringify(localJobs));
                   
-                  toast({ description: "Offre importée localement et ajoutée aux likes !" });
+                  toast({ description: "Offre importée localement et ajoutée aux offres importées !" });
                   
-                  // Recharger les likes si on est sur l'onglet liked
-                  setActiveTab("liked");
-                  loadLikedJobs();
+                  // Recharger les offres importées et aller sur l'onglet
+                  setActiveTab("imported");
+                  loadImportedJobs();
                   
               } catch (e) {
                   console.error("Erreur lors de l'importation :", e);
@@ -909,9 +928,9 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
       localJobs.splice(localIndex, 1);
       localStorage.setItem("JOBSWIPE_LOCAL_IMPORTED_JOBS", JSON.stringify(localJobs));
       toast({ description: "Offre locale retirée avec succès." });
+      // Recharger la liste des offres importées
       await Promise.all([
-        loadLikedJobs(),
-        loadSuperlikedJobs()
+        loadImportedJobs()
       ]);
       return;
     }
@@ -1022,6 +1041,21 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
     );
   }
 
+  // Écran de chargement pour les offres importées
+  if (loadingImported && activeTab === "imported") {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <LogoHeader />
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            <p className="text-slate-600">Chargement de vos offres importées...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 relative">
       {/* Bordures colorées subtiles sur les côtés */}
@@ -1090,6 +1124,16 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
               }`}
             >
               Superlikes
+            </button>
+            <button
+              onClick={() => setActiveTab("imported")}
+              className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ease-out ${
+                activeTab === "imported"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105 cursor-default"
+                  : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 hover:scale-105 cursor-pointer"
+              }`}
+            >
+              Importées
             </button>
             <button
               onClick={handleImportOffer}
@@ -1429,7 +1473,7 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                 </div>
               )}
             </>
-          ) : (
+          ) : activeTab === "superliked" ? (
             // Onglet "Superlikes" - Style Alan
             <>
               {superlikedJobs.length === 0 ? (
@@ -1544,6 +1588,132 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
                             onClick={() => handleRemoveSwipe(job.id)}
                             className="px-4 py-3 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-medium shadow-sm hover:bg-red-100 hover:scale-105 cursor-pointer transition-all duration-200 ease-out flex items-center justify-center"
                             title="Retirer des superlikes"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            // Onglet "Offres importées" - Style Alan
+            <>
+              {importedJobs.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center max-w-md px-6">
+                    <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 mb-6">
+                      <Download className="w-16 h-16 mx-auto mb-4 text-indigo-600" />
+                      <h2 className="text-2xl font-semibold mb-2 text-slate-800">Aucune offre importée</h2>
+                      <p className="text-slate-600 mb-6">
+                        Vous n'avez pas encore importé d'offres. Utilisez le bouton "Importer" pour ajouter des offres depuis d'autres sites.
+                      </p>
+                      <button
+                        onClick={handleImportOffer}
+                        className="px-6 py-3 rounded-2xl bg-indigo-600 text-white font-medium shadow-sm hover:bg-indigo-700 transition-all duration-200 ease-out flex items-center justify-center gap-2 mx-auto"
+                      >
+                        <Download className="w-4 h-4" />
+                        Importer une offre
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 max-w-2xl mx-auto">
+                  {importedJobs.map((job) => (
+                    <div key={job.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 relative hover:shadow-md hover:scale-[1.01] transition-all duration-200">
+                      {userCvData && <JobScore job={job} cvData={userCvData} />}
+                      <div className="p-6 space-y-4">
+                        {/* Titre avec badge Importé */}
+                        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-4 border border-emerald-100">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Download className="w-5 h-5 text-emerald-600" />
+                            <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Importé</span>
+                          </div>
+                          <h2 className="text-2xl font-semibold text-slate-800 mb-2">
+                            {job.title}
+                          </h2>
+                          <div className="flex items-center gap-2 text-slate-600">
+                            <Building2 className="w-4 h-4" />
+                            <span className="text-base">{job.company}</span>
+                            <span className="mx-1 text-slate-400">•</span>
+                            <MapPin className="w-4 h-4" />
+                            <span className="text-base">{job.location}</span>
+                          </div>
+                        </div>
+
+                        {/* Informations détaillées */}
+                        <div className="space-y-2 pt-2 border-t border-slate-100">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="font-medium text-slate-500">Type de contrat:</span>
+                              <span className="text-slate-800">{job.contract_type || "Non spécifié"}</span>
+                            </div>
+                            {job.secteur && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="font-medium text-slate-500">Secteur:</span>
+                                <span className="text-slate-800">{job.secteur}</span>
+                              </div>
+                            )}
+                            {(job.niveau || job.raw?.seniority_level) && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="font-medium text-slate-500">Niveau:</span>
+                                <span className="text-slate-800">{job.niveau || job.raw?.seniority_level}</span>
+                              </div>
+                            )}
+                            {job.famille && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="font-medium text-slate-500">Famille:</span>
+                                <span className="text-slate-800">{job.famille}</span>
+                              </div>
+                            )}
+                          </div>
+                          {formatSalary(job) && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="font-medium text-slate-500">Salaire:</span>
+                              <span className="text-emerald-600 font-semibold">{formatSalary(job)}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Mots clés */}
+                        {job.raw?.keywords && Array.isArray(job.raw.keywords) && job.raw.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-2">
+                            {job.raw.keywords.slice(0, 5).map((keyword: string, idx: number) => (
+                              <Badge key={idx} variant="outline" className="text-xs font-normal bg-slate-50 text-slate-600 border-slate-200">{keyword}</Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Description */}
+                        <div className="pt-2 border-t border-slate-100">
+                          <h3 className="font-semibold text-slate-800 mb-2">Résumé / Description</h3>
+                          <p className="text-sm text-slate-600 leading-relaxed">
+                            {getJobDescriptionShort(job)}
+                          </p>
+                        </div>
+
+                        {/* Bouton pour voir la fiche */}
+                        <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                          <button
+                            onClick={() => navigate(`/offres/${job.id}`)}
+                            className="flex-1 px-6 py-3 rounded-2xl bg-white text-slate-800 border border-slate-200 font-medium shadow-sm hover:bg-slate-50 hover:scale-105 cursor-pointer transition-all duration-200 ease-out flex items-center justify-center gap-2"
+                          >
+                            🔍 Détails
+                          </button>
+                          <button
+                            onClick={() => window.open(job.redirect_url, "_blank")}
+                            className="flex-1 px-6 py-3 rounded-2xl bg-indigo-600 text-white font-medium shadow-sm hover:bg-indigo-700 hover:scale-105 cursor-pointer transition-all duration-200 ease-out flex items-center justify-center gap-2"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            Voir la fiche
+                          </button>
+                          <button
+                            onClick={() => handleRemoveSwipe(job.id)}
+                            className="px-4 py-3 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-medium shadow-sm hover:bg-red-100 hover:scale-105 cursor-pointer transition-all duration-200 ease-out flex items-center justify-center"
+                            title="Retirer des offres importées"
                           >
                             <Trash2 className="w-5 h-5" />
                           </button>
