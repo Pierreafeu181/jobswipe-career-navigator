@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import base64
@@ -32,7 +33,7 @@ if os.getenv("FRONTEND_URL"):
 # Configuration CORS pour permettre les appels depuis le frontend (React)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En prod, remplacez par l'URL de votre frontend (ex: http://localhost:5173)
+    allow_origins=["http://172.16.2.243:8080"],  # En prod, remplacez par l'URL de votre frontend (ex: http://localhost:5173)
     #allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
