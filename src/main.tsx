@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { HelmetProvider } from "react-helmet-async";
 import App from "./App";
 import "./index.css";
 import { bootstrapSupabaseAuth } from "./lib/authBootstrap";
@@ -75,5 +76,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 // Bootstrap Supabase auth before rendering (handle OAuth callbacks)
 (async () => {
   await bootstrapSupabaseAuth();
-  createRoot(document.getElementById("root")!).render(<App />);
+  createRoot(document.getElementById("root")!).render(
+    <HelmetProvider>
+      <App />
+    </HelmetProvider>
+  );
 })();
