@@ -15,6 +15,7 @@ import { Profile } from "@/types/profile";
 import { Loader2, ExternalLink, FileText, TrendingUp, Heart, Mail, Sparkles, PenTool, ArrowLeft, Home, Puzzle, Check, Save, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GeneratedDocumentView } from "@/components/GeneratedDocumentView";
+import { SEOHead } from "@/components/seo";
 
 const OffreDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -705,6 +706,13 @@ const OffreDetail = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
+      {job && (
+        <SEOHead
+          title={`${job.title} chez ${job.company}`}
+          description={`Postulez à ${job.title} chez ${job.company} à ${job.location}. ${job.contract_type}. Découvrez les détails de l'offre.`}
+          canonical={`${window.location.origin}${window.location.pathname}${window.location.hash}`}
+        />
+      )}
       {/* Bordures colorées subtiles sur les côtés */}
       <div className="fixed left-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-violet-200 via-purple-200 to-indigo-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-blue-200 via-indigo-200 to-violet-200 opacity-50 blur-3xl z-0 pointer-events-none" />
