@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,17 +11,19 @@ import AuthCallback from "./pages/AuthCallback";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import HomePage from "./pages/HomePage";
-import ProfilePage from "./pages/ProfilePage";
-import Profil from "./pages/Profil";
-import CV from "./pages/CV";
-import JobswipeOffers from "./pages/Offres";
-import OffreDetail from "./pages/OffreDetail";
-import OffreFiche from "./pages/OffreFiche";
-import OffreScore from "./pages/OffreScore";
-import Dashboard from "./pages/Dashboard";
-import Calendrier from "./pages/Calendrier";
-import ApplicationDashboard from "./pages/ApplicationDashboard";
 import NotFound from "./pages/NotFound";
+
+// Lazy load heavy pages for better code splitting
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const Profil = lazy(() => import("./pages/Profil"));
+const CV = lazy(() => import("./pages/CV"));
+const JobswipeOffers = lazy(() => import("./pages/Offres"));
+const OffreDetail = lazy(() => import("./pages/OffreDetail"));
+const OffreFiche = lazy(() => import("./pages/OffreFiche"));
+const OffreScore = lazy(() => import("./pages/OffreScore"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Calendrier = lazy(() => import("./pages/Calendrier"));
+const ApplicationDashboard = lazy(() => import("./pages/ApplicationDashboard"));
 
 const queryClient = new QueryClient();
 
@@ -74,7 +76,12 @@ const App = () => {
             v7_relativeSplatPath: true,
           }}
         >
-          <Routes>
+          <Suspense fallback={
+            <div className="min-h-screen bg-background flex items-center justify-center">
+              <div className="text-muted-foreground">Chargement...</div>
+            </div>
+          }>
+            <Routes>
             {/* Routes publiques - accessibles sans session */}
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -106,7 +113,8 @@ const App = () => {
                 <Route path="*" element={<AuthPage />} />
               </>
             ) : null}
-          </Routes>
+            </Routes>
+          </Suspense>
         </HashRouter>
       </TooltipProvider>
     </QueryClientProvider>
