@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { loadFavorites } from "@/lib/storage";
 import { ArrowLeft, TrendingUp } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { SEOHead } from "@/components/seo";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -26,6 +27,11 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="Tableau de bord"
+        description="Vue d'ensemble de votre recherche d'emploi"
+        noindex={true}
+      />
       <LogoHeader />
       
       <div className="px-6 py-8 max-w-2xl mx-auto">

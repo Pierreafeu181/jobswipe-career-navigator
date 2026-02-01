@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SEOHead } from '@/components/seo';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -578,6 +579,11 @@ FORMAT DE RÉPONSE ATTENDU (JSON uniquement) :
 
   return (
     <TooltipProvider>
+      <SEOHead
+        title="Suivi des candidatures"
+        description="Suivez vos candidatures en temps réel"
+        noindex={true}
+      />
       <div className="p-4 lg:p-8 pb-48">
         <div className="fixed top-4 right-4 z-50 flex gap-3">
           <button

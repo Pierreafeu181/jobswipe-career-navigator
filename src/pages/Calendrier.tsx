@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Lightbulb } from "lucide-react";
+import { SEOHead } from "@/components/seo";
 
 const Calendrier = () => {
   const navigate = useNavigate();
@@ -16,6 +17,11 @@ const Calendrier = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="Calendrier des entretiens"
+        description="Planifiez et suivez vos entretiens"
+        noindex={true}
+      />
       <LogoHeader />
       
       <div className="px-6 py-8 max-w-2xl mx-auto">

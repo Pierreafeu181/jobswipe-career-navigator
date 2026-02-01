@@ -14,6 +14,7 @@ import { SkillsSection } from "@/components/profile/SkillsSection";
 import { InterestsSection } from "@/components/profile/InterestsSection";
 import { CollapsibleSection } from "@/components/profile/CollapsibleSection";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+import { SEOHead } from "@/components/seo";
 
 import { saveProfile as saveProfileToStorage } from "@/lib/storage";
 import { UserProfile } from "@/types/job";
@@ -520,6 +521,11 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
+      <SEOHead
+        title="Mon Profil"
+        description="Gérez votre profil professionnel"
+        noindex={true}
+      />
       {/* Bordures colorées subtiles sur les côtés */}
       <div className="fixed left-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-violet-200 via-purple-200 to-indigo-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-blue-200 via-indigo-200 to-violet-200 opacity-50 blur-3xl z-0 pointer-events-none" />
