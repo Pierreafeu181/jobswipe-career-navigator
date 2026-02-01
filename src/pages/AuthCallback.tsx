@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { Loader2 } from "lucide-react";
+import { SEOHead } from "@/components/seo";
 
 /**
  * Page de callback pour gérer le retour OAuth (Google, etc.)
@@ -96,6 +97,11 @@ const AuthCallback = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden">
+      <SEOHead
+        title="Connexion en cours"
+        description="Finalisation de la connexion"
+        noindex={true}
+      />
       {/* Bordures colorées subtiles sur les côtés */}
       <div className="fixed left-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-violet-200 via-purple-200 to-indigo-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-blue-200 via-indigo-200 to-violet-200 opacity-50 blur-3xl z-0 pointer-events-none" />

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
 import { Mail, ArrowLeft } from "lucide-react";
+import { SEOHead } from "@/components/seo";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -58,6 +59,11 @@ const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-rose-400 via-pink-500 via-purple-500 to-indigo-600 relative overflow-hidden">
+      <SEOHead
+        title="Mot de passe oublié"
+        description="Réinitialisation du mot de passe"
+        noindex={true}
+      />
       {/* Pattern overlay subtil */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,255,255,0.1),transparent_50%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(255,255,255,0.08),transparent_50%)] pointer-events-none" />
