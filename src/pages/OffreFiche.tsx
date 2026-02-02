@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchJobById } from "@/lib/supabase";
 import { Job } from "@/types/job";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { SEOHead } from "@/components/seo";
 
 const OffreFiche = () => {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +43,11 @@ const OffreFiche = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
+        <SEOHead
+          title="Chargement de l'offre"
+          description="Chargement des détails de l'offre d'emploi"
+          noindex={true}
+        />
         <LogoHeader />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -53,6 +59,11 @@ const OffreFiche = () => {
   if (!job) {
     return (
       <div className="min-h-screen bg-background">
+        <SEOHead
+          title="Offre non trouvée"
+          description="Cette offre d'emploi n'existe pas"
+          noindex={true}
+        />
         <LogoHeader />
         <div className="px-6 py-8 text-center">
           <p className="text-muted-foreground">Offre non trouvée</p>
@@ -65,6 +76,11 @@ const OffreFiche = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={`${job.title} chez ${job.company}`}
+        description={`Fiche du poste: ${job.title} chez ${job.company} à ${job.location}. Consultez tous les détails de l'offre.`}
+        canonical={`${window.location.origin}${window.location.pathname}${window.location.hash}`}
+      />
       <LogoHeader />
       
       <div className="px-6 py-8 max-w-2xl mx-auto">

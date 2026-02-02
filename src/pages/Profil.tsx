@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { saveProfile, loadProfile } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { FileText } from "lucide-react";
+import { SEOHead } from "@/components/seo";
 
 const Profil = () => {
   const navigate = useNavigate();
@@ -43,6 +44,11 @@ const Profil = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="Mon Profil"
+        description="Gestion du profil utilisateur"
+        noindex={true}
+      />
       <LogoHeader />
       
       <div className="px-6 py-8 max-w-2xl mx-auto">

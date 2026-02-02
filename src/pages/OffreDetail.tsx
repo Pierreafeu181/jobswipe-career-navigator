@@ -15,6 +15,7 @@ import { Profile } from "@/types/profile";
 import { Loader2, ExternalLink, FileText, TrendingUp, Heart, Mail, Sparkles, PenTool, ArrowLeft, Home, Puzzle, Check, Save, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GeneratedDocumentView } from "@/components/GeneratedDocumentView";
+import { SEOHead } from "@/components/seo";
 
 const OffreDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -720,8 +721,95 @@ const OffreDetail = () => {
     );
   }
 
+  // Generate JobPosting schema for rich results
+  const generateJobSchema = (job: Job) => {
+    const schema: any = {
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
+      "title": job.title,
+      "description": job.raw?.description || `Offre d'emploi: ${job.title} chez ${job.company}`,
+      "datePosted": job.created_at,
+      "hiringOrganization": {
+        "@type": "Organization",
+        "name": job.company
+      },
+      "jobLocation": {
+        "@type": "Place",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": job.location,
+          "addressCountry": "FR"
+        }
+      },
+      "employmentType": mapContractTypeToSchema(job.contract_type)
+    };
+
+    // Add salary if available
+    if (job.salary_min && job.salary_max) {
+      schema.baseSalary = {
+        "@type": "MonetaryAmount",
+        "currency": "EUR",
+        "value": {
+          "@type": "QuantitativeValue",
+          "minValue": job.salary_min,
+          "maxValue": job.salary_max,
+          "unitText": "YEAR"
+        }
+      };
+    }
+
+    return schema;
+  };
+
+  // Generate BreadcrumbList schema for navigation hierarchy
+  const generateBreadcrumbSchema = (job: Job) => {
+    return {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Accueil",
+          "item": window.location.origin
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Offres d'emploi",
+          "item": `${window.location.origin}/#/jobswipe/offres`
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": `${job.title} chez ${job.company}`,
+          "item": `${window.location.origin}${window.location.pathname}${window.location.hash}`
+        }
+      ]
+    };
+  };
+
+  const mapContractTypeToSchema = (contractType: string): string => {
+    const mapping: { [key: string]: string } = {
+      "CDI": "FULL_TIME",
+      "CDD": "TEMPORARY",
+      "Stage": "INTERN",
+      "Alternance": "INTERN",
+      "Freelance": "CONTRACTOR"
+    };
+    return mapping[contractType] || "OTHER";
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
+      {job && (
+        <SEOHead
+          title={`${job.title} chez ${job.company}`}
+          description={`Postulez à ${job.title} chez ${job.company} à ${job.location}. ${job.contract_type}. Découvrez les détails de l'offre.`}
+          canonical={`${window.location.origin}${window.location.pathname}${window.location.hash}`}
+          jsonLd={[generateJobSchema(job), generateBreadcrumbSchema(job)]}
+        />
+      )}
       {/* Bordures colorées subtiles sur les côtés */}
       <div className="fixed left-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-violet-200 via-purple-200 to-indigo-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-blue-200 via-indigo-200 to-violet-200 opacity-50 blur-3xl z-0 pointer-events-none" />
@@ -793,8 +881,8 @@ const OffreDetail = () => {
             )}
 
             <div>
-              <h3 className="font-semibold text-foreground mb-2">Intitulé de la mission</h3>
-              <p className="text-foreground">{job.title}</p>
+              <h1 className="text-2xl font-bold text-foreground mb-2">{job.title}</h1>
+              <p className="text-sm text-muted-foreground">Offre d'emploi</p>
             </div>
 
             <div>

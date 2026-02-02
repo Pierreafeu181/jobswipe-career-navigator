@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { supabase } from "@/lib/supabaseClient";
 import { LogIn, UserPlus } from "lucide-react";
 import { Chrome } from "lucide-react";
+import { SEOHead } from "@/components/seo";
 
 type AuthMode = "login" | "signup";
 
@@ -173,6 +174,13 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 relative overflow-hidden">
+      <SEOHead
+        title={mode === "login" ? "Connexion" : "Inscription"}
+        description={mode === "login"
+          ? "Connectez-vous à votre compte JobSwipe pour accéder à vos offres personnalisées"
+          : "Créez votre compte JobSwipe et commencez votre recherche d'emploi d'ingénieur"}
+        noindex={true}
+      />
       {/* Bordures colorées subtiles sur les côtés */}
       <div className="fixed left-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-violet-200 via-purple-200 to-indigo-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-blue-200 via-indigo-200 to-violet-200 opacity-50 blur-3xl z-0 pointer-events-none" />

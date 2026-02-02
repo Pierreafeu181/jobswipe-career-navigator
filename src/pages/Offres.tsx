@@ -12,6 +12,7 @@ import { Loader2, Heart, X, MapPin, Building2, Briefcase, ExternalLink, RotateCc
 import { JobSwipeScreen } from "@/components/swipe";
 import { OfferDetailModal } from "@/components/OfferDetailModal";
 import { useToast } from "@/hooks/use-toast";
+import { SEOHead } from "@/components/seo";
 
 interface OffresProps {
   userId: string;
@@ -1058,6 +1059,11 @@ const JobswipeOffers = ({ userId }: OffresProps) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 relative">
+      <SEOHead
+        title="Offres d'emploi pour ingénieurs"
+        description="Découvrez des centaines d'offres d'emploi pour ingénieurs débutants et confirmés. Postulez en un clic à votre futur poste."
+        canonical={`${window.location.origin}${window.location.pathname}${window.location.hash}`}
+      />
       {/* Bordures colorées subtiles sur les côtés */}
       <div className="fixed left-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-violet-200 via-purple-200 to-indigo-200 opacity-50 blur-3xl z-0 pointer-events-none" />
       <div className="fixed right-0 top-0 bottom-0 w-[5cm] bg-gradient-to-b from-blue-200 via-indigo-200 to-violet-200 opacity-50 blur-3xl z-0 pointer-events-none" />

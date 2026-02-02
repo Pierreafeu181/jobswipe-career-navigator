@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
 import { Lock, CheckCircle2, ArrowLeft } from "lucide-react";
+import { SEOHead } from "@/components/seo";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -101,6 +102,11 @@ const ResetPassword = () => {
   if (isValidSession === false) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-rose-400 via-pink-500 via-purple-500 to-indigo-600 relative overflow-hidden">
+        <SEOHead
+          title="Lien invalide"
+          description="Réinitialisation du mot de passe"
+          noindex={true}
+        />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,255,255,0.1),transparent_50%)] pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(255,255,255,0.08),transparent_50%)] pointer-events-none" />
         
@@ -150,6 +156,11 @@ const ResetPassword = () => {
   if (isValidSession === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-400 via-pink-500 via-purple-500 to-indigo-600">
+        <SEOHead
+          title="Vérification en cours"
+          description="Réinitialisation du mot de passe"
+          noindex={true}
+        />
         <div className="text-white">Vérification en cours...</div>
       </div>
     );
@@ -157,6 +168,11 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-rose-400 via-pink-500 via-purple-500 to-indigo-600 relative overflow-hidden">
+      <SEOHead
+        title="Nouveau mot de passe"
+        description="Réinitialisation du mot de passe"
+        noindex={true}
+      />
       {/* Pattern overlay subtil */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,255,255,0.1),transparent_50%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(255,255,255,0.08),transparent_50%)] pointer-events-none" />

@@ -10,6 +10,7 @@ import { Job } from "@/types/job";
 import { Profile } from "@/types/profile";
 import { Loader2, ArrowLeft, CheckCircle2, XCircle, AlertTriangle, Lightbulb, Briefcase, GraduationCap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { SEOHead } from "@/components/seo";
 
 const OffreScore = () => {
   const { id } = useParams<{ id: string }>();
@@ -135,6 +136,11 @@ const OffreScore = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
+        <SEOHead
+          title="Analyse IA en cours"
+          description="Analyse de compatibilité par l'IA"
+          noindex={true}
+        />
         <LogoHeader />
         <div className="flex flex-col items-center justify-center py-24">
           <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
@@ -147,6 +153,11 @@ const OffreScore = () => {
   if (!job || !scoreData) {
     return (
       <div className="min-h-screen bg-background">
+        <SEOHead
+          title="Analyse impossible"
+          description="Analyse de compatibilité IA"
+          noindex={true}
+        />
         <LogoHeader />
         <div className="px-6 py-8 text-center">
           <p className="text-muted-foreground">Offre non trouvée ou analyse impossible.</p>
@@ -169,6 +180,11 @@ const OffreScore = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="Analyse de compatibilité IA"
+        description="Résultats de l'analyse de compatibilité par l'IA"
+        noindex={true}
+      />
       <LogoHeader />
       
       <div className="px-6 py-8 max-w-3xl mx-auto">

@@ -3,6 +3,7 @@ import { LogoHeader } from "@/components/LogoHeader";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { loadProfile } from "@/lib/storage";
 import { ArrowRight, Download } from "lucide-react";
+import { SEOHead } from "@/components/seo";
 
 const CV = () => {
   const navigate = useNavigate();
@@ -11,6 +12,11 @@ const CV = () => {
   if (!profile) {
     return (
       <div className="min-h-screen bg-slate-50">
+        <SEOHead
+          title="Mon CV"
+          description="Génération de CV"
+          noindex={true}
+        />
         <LogoHeader />
         <div className="px-6 py-8 max-w-2xl mx-auto text-center">
           <p className="text-slate-600 mb-4">Veuillez d'abord compléter votre profil</p>
@@ -24,6 +30,11 @@ const CV = () => {
 
   return (
     <div className="min-h-screen bg-slate-100/50 pb-12">
+      <SEOHead
+        title="Mon CV"
+        description="Génération de CV"
+        noindex={true}
+      />
       <LogoHeader />
       
       <div className="px-4 py-8 flex justify-center">
