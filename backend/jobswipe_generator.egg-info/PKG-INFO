@@ -17,3 +17,4 @@ Requires-Dist: spacy>=3.8.11
 Requires-Dist: scikit-learn>=1.7.2
 Requires-Dist: numpy>=2.2.6
 Requires-Dist: pip>=25.3
+Requires-Dist: pytest>=9.0.2

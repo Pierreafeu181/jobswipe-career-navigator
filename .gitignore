@@ -41,3 +41,5 @@ cover_letter/
 *.pdf
 *.docx
 *.html
+backend/uv.lock
+backend/pyproject.toml

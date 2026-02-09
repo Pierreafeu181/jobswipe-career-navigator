@@ -12,6 +12,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
+import DisclaimerPage from "./pages/DisclaimerPage";
 import Profil from "./pages/Profil";
 import CV from "./pages/CV";
 import JobswipeOffers from "./pages/Offres";
@@ -28,6 +29,7 @@ const queryClient = new QueryClient();
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   useEffect(() => {
     let done = false;
@@ -35,6 +37,10 @@ const App = () => {
     // Récupérer la session au montage
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      // Vérifier si l'utilisateur a déjà accepté le disclaimer
+      const accepted = localStorage.getItem("jobswipe_ai_consent") === "true";
+      setDisclaimerAccepted(accepted);
+
       if (!done) {
         done = true;
         setAuthReady(true);
@@ -46,6 +52,10 @@ const App = () => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (_event === 'SIGNED_IN') {
+        // Re-vérifier lors de la connexion (cas où on se reconnecte sans rafraîchir)
+        setDisclaimerAccepted(localStorage.getItem("jobswipe_ai_consent") === "true");
+      }
       if (!done) {
         done = true;
         setAuthReady(true);
@@ -54,6 +64,11 @@ const App = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const handleAcceptDisclaimer = () => {
+    localStorage.setItem("jobswipe_ai_consent", "true");
+    setDisclaimerAccepted(true);
+  };
 
   if (!authReady) {
     return (
@@ -81,6 +96,9 @@ const App = () => {
             <Route path="/reset-password" element={<ResetPassword />} />
             
             {authReady && session ? (
+              !disclaimerAccepted ? (
+                <Route path="*" element={<DisclaimerPage onAccept={handleAcceptDisclaimer} />} />
+              ) : (
               <>
                 {/* Routes protégées - utilisateur authentifié */}
                 <Route path="/" element={<HomePage session={session} />} />
@@ -100,6 +118,7 @@ const App = () => {
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </>
+              )
             ) : authReady && !session ? (
               <>
                 {/* Routes publiques - utilisateur non authentifié (seulement après authReady) */}

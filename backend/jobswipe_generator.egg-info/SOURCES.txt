@@ -14,6 +14,14 @@ generator/functions/generator_service.py
 generator/functions/job_offer_parser.py
 generator/functions/matcher_engine.py
 generator/functions/tempCodeRunnerFile.py
+generator/functions/test_compatibility.py
+generator/functions/test_content_selector.py
+generator/functions/test_cover_letter_generator.py
+generator/functions/test_cv_generator.py
+generator/functions/test_experience_generator.py
+generator/functions/test_generator_service.py
+generator/functions/test_job_offer_parser.py
+generator/functions/test_matcher_engine.py
 jobswipe_generator.egg-info/PKG-INFO
 jobswipe_generator.egg-info/SOURCES.txt
 jobswipe_generator.egg-info/dependency_links.txt
