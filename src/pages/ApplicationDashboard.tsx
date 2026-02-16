@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { MoreHorizontal, Bell, Home, User, Briefcase, Loader2, ChevronDown, ChevronUp, BrainCircuit, CalendarClock, Lightbulb, CheckCircle2, AlertCircle, MessageSquare, FileText, XCircle, RefreshCw, Clock, Calendar as CalendarIcon, ArrowRight, Mail, Trash2, Phone, Video, MapPin, Heart } from 'lucide-react';
+import { MoreHorizontal, Bell, Home, User, Briefcase, Loader2, ChevronDown, ChevronUp, BrainCircuit, CalendarClock, Lightbulb, CheckCircle2, AlertCircle, MessageSquare, FileText, XCircle, RefreshCw, Clock, Calendar as CalendarIcon, ArrowRight, Mail, Trash2, Phone, Video, MapPin, Heart, Search, Copy, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/lib/supabaseClient";
@@ -128,7 +128,7 @@ const ApplicationDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [applications, setApplications] = useState<Application[]>(initialApplications);
-  const [activeTab, setActiveTab] = useState<"overview" | "offers" | "applications" | "analyst">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "offers" | "applications" | "analyst" | "contacts">("overview");
   const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [showRejectionModal, setShowRejectionModal] = useState(false);
@@ -150,6 +150,11 @@ const ApplicationDashboard: React.FC = () => {
   const [selectedFeedbackApp, setSelectedFeedbackApp] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [contactSearchJobId, setContactSearchJobId] = useState<string>("");
+  const [contactSearchResults, setContactSearchResults] = useState<Array<{ nom: string, poste: string, email: string, is_rh: boolean, detail_bio: string, custom_mail_body: string }> | null>(null);
+  const [selectedContact, setSelectedContact] = useState<{ nom: string, poste: string, email: string, is_rh: boolean, detail_bio: string, custom_mail_body: string } | null>(null);
+  const [isContactSearching, setIsContactSearching] = useState(false);
+  const [contactSearchError, setContactSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (location.state?.initialView) {
@@ -160,6 +165,25 @@ const ApplicationDashboard: React.FC = () => {
       }
     }
   }, [location.state]);
+
+  // Charger les contacts sauvegardés quand l'offre sélectionnée change
+  useEffect(() => {
+    if (contactSearchJobId) {
+      const saved = localStorage.getItem(`JOBSWIPE_CONTACTS_${contactSearchJobId}`);
+      if (saved) {
+        try {
+          setContactSearchResults(JSON.parse(saved));
+        } catch (e) {
+          console.error("Error parsing saved contacts", e);
+          setContactSearchResults(null);
+        }
+      } else {
+        setContactSearchResults(null);
+      }
+    } else {
+      setContactSearchResults(null);
+    }
+  }, [contactSearchJobId]);
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -512,6 +536,90 @@ FORMAT DE RÉPONSE ATTENDU (JSON uniquement) :
         console.error("Erreur Gemini:", error);
     } finally {
         setIsTimingLoading(false);
+    }
+  };
+
+  const handleContactSearch = async () => {
+    if (!contactSearchJobId) return;
+    
+    const app = applications.find(a => a.id === contactSearchJobId);
+    if (!app) return;
+
+    // Capture existing names for exclusion BEFORE clearing state
+    const existingNames = contactSearchResults?.map(c => c.nom) || [];
+    const exclusionPrompt = existingNames.length > 0 
+      ? `IMPORTANT : Ne propose PAS les profils suivants que j'ai déjà vus : ${existingNames.join(", ")}. Trouve 5 personnes DIFFÉRENTES.` 
+      : "";
+
+    setIsContactSearching(true);
+    setContactSearchError(null);
+    setContactSearchResults(null);
+
+    try {
+      const apiKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
+      if (!apiKey) {
+        toast.error("Clé API Gemini manquante. Veuillez la configurer dans votre profil.");
+        setIsContactSearching(false);
+        return;
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ 
+        model: localStorage.getItem("JOBSWIPE_GEMINI_MODEL") || "gemini-2.5-flash",
+        tools: [{ googleSearch: {} }] 
+      });
+
+      const prompt = `
+        Objectif : Trouver des contacts pertinents chez ${app.company} pour le poste de ${app.title}.
+        
+        Instructions :
+        1. Utilise Google Search pour identifier exactement 5 profils réels actuels chez ${app.company}.
+        ${exclusionPrompt}
+        2. Structure de la réponse (Ordre IMPÉRATIF) :
+           - Les 3 premiers profils doivent être des opérationnels (pairs, seniors, managers) travaillant dans le département lié à ${app.title}.
+           - Les 2 derniers profils doivent être des RH avec l'intitulé "Talent Acquisition" ou "Ressources Humaines".
+        3. Pour chaque profil, extrais ou déduis :
+           - Nom complet
+           - Intitulé exact du poste
+           - Email professionnel (si introuvable, propose le format le plus probable ex: prenom.nom@entreprise.com)
+           - Une courte bio (1 phrase sur leur parcours ou rôle actuel)
+        4. Génère un message d'approche (custom_mail_body) :
+           - Court (2-3 phrases)
+           - Ultra-personnalisé (mentionne leur rôle ou un détail spécifique)
+           - Demande conseil sur le poste de ${app.title}
+        
+        Format de sortie STRICT (JSON uniquement, pas de markdown) :
+        [
+          {
+            "nom": "Prénom Nom",
+            "poste": "Intitulé du poste",
+            "email": "email@entreprise.com",
+            "is_rh": true, // true uniquement pour les profils RH/Talent Acquisition
+            "detail_bio": "...",
+            "custom_mail_body": "..."
+          }
+        ]
+      `;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      const jsonString = text.replace(/```json\n?|```/g, '').trim();
+      const data = JSON.parse(jsonString);
+      
+      if (Array.isArray(data)) {
+        setContactSearchResults(data);
+        localStorage.setItem(`JOBSWIPE_CONTACTS_${contactSearchJobId}`, JSON.stringify(data));
+      } else {
+        throw new Error("Format de réponse invalide");
+      }
+
+    } catch (err: any) {
+      console.error("Erreur recherche contacts:", err);
+      setContactSearchError(err.message || "Une erreur est survenue lors de la recherche.");
+    } finally {
+      setIsContactSearching(false);
     }
   };
 
@@ -1036,6 +1144,88 @@ FORMAT DE RÉPONSE ATTENDU (JSON uniquement) :
             </div>
           </div>
         )}
+
+        {activeTab === "contacts" && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="w-6 h-6 text-indigo-600" />
+                  Recherche de Contacts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                   <Label>Sélectionner une offre (Likée ou Superlikée)</Label>
+                   <div className="flex flex-col sm:flex-row gap-4">
+                     <select 
+                       className="flex-1 p-2 border rounded-md bg-white text-sm"
+                       value={contactSearchJobId || ""}
+                       onChange={(e) => setContactSearchJobId(e.target.value)}
+                     >
+                       <option value="">Choisir une entreprise...</option>
+                       {applications
+                         .filter(a => ['imported', 'liked', 'superliked'].includes(a.status))
+                         .map(app => (
+                           <option key={app.id} value={app.id}>
+                             {app.company} - {app.title}
+                           </option>
+                         ))
+                       }
+                     </select>
+                     <Button 
+                       onClick={handleContactSearch}
+                       disabled={!contactSearchJobId || isContactSearching}
+                       className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                     >
+                       {isContactSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                       <span className="ml-2">Rechercher</span>
+                     </Button>
+                   </div>
+                </div>
+
+                {contactSearchError && (
+                  <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    {contactSearchError}
+                  </div>
+                )}
+
+                {contactSearchResults && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {contactSearchResults.map((contact, idx) => (
+                      <Card 
+                        key={idx} 
+                        className="bg-white shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
+                        onClick={() => setSelectedContact(contact)}
+                      >
+                        {contact.is_rh && (
+                          <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg z-10">
+                            RH
+                          </div>
+                        )}
+                        <CardContent className="p-4 flex flex-col gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${contact.is_rh ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                              {contact.nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{contact.nom}</p>
+                              <p className="text-xs text-slate-500 truncate">{contact.poste}</p>
+                            </div>
+                          </div>
+                          <div className="pt-2 border-t border-slate-100">
+                            <p className="text-xs text-slate-400 line-clamp-2">{contact.detail_bio}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
           </>
         )}
 
@@ -1069,6 +1259,13 @@ FORMAT DE RÉPONSE ATTENDU (JSON uniquement) :
               className="rounded-full px-6 transition-all duration-300"
             >
               IA Analyste
+            </Button>
+            <Button 
+              variant={activeTab === "contacts" ? "default" : "ghost"}
+              onClick={() => setActiveTab("contacts")}
+              className="rounded-full px-6 transition-all duration-300"
+            >
+              Contacts
             </Button>
           </div>
         </div>
@@ -1225,6 +1422,76 @@ FORMAT DE RÉPONSE ATTENDU (JSON uniquement) :
               <div className="flex gap-2 justify-end pt-4">
                 <Button variant="outline" onClick={() => setShowRejectionModal(false)}>Annuler</Button>
                 <Button variant="destructive" onClick={() => { executeStatusChange(pendingRejectionApp.id, 'rejected', undefined, rejectionReason); setShowRejectionModal(false); }}>Confirmer le refus</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Modal de Contact */}
+      {selectedContact && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-lg shadow-2xl relative overflow-hidden">
+            <button 
+              onClick={() => setSelectedContact(null)}
+              className="absolute top-4 right-4 p-1 rounded-full hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+            
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-4">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl shrink-0 ${selectedContact.is_rh ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                  {selectedContact.nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    {selectedContact.nom}
+                    {selectedContact.is_rh && <span className="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full">RH</span>}
+                  </CardTitle>
+                  <p className="text-slate-500 text-sm">{selectedContact.poste}</p>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="space-y-6">
+              <div className="bg-slate-50 p-3 rounded-lg text-sm text-slate-700">
+                <p className="font-medium mb-1">Bio</p>
+                {selectedContact.detail_bio}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-500 uppercase">Email professionnel</Label>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={selectedContact.email} className="bg-white" />
+                  <Button size="icon" variant="outline" onClick={() => { navigator.clipboard.writeText(selectedContact.email); toast.success("Email copié"); }}>
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-500 uppercase">Message d'approche suggéré</Label>
+                <div className="bg-indigo-50/50 border border-indigo-100 rounded-lg p-3 text-sm text-slate-700 italic relative">
+                  "{selectedContact.custom_mail_body}"
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setSelectedContact(null)}>
+                  Fermer
+                </Button>
+                <Button 
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                  onClick={() => {
+                    const subject = encodeURIComponent(`Prise de contact - ${selectedContact.poste}`);
+                    const body = encodeURIComponent(selectedContact.custom_mail_body);
+                    window.location.href = `mailto:${selectedContact.email}?subject=${subject}&body=${body}`;
+                  }}
+                >
+                  <Mail className="w-4 h-4" />
+                  Envoyer un mail
+                </Button>
               </div>
             </CardContent>
           </Card>
