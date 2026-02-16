@@ -450,13 +450,15 @@ const ApplicationDashboard: React.FC = () => {
     };
 
     try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const apiKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
         if (!apiKey) {
-            throw new Error("Clé API Gemini manquante (VITE_GEMINI_API_KEY)");
+            toast.error("Clé API Gemini manquante. Veuillez la configurer dans votre profil.");
+            throw new Error("Clé API Gemini manquante");
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelName = localStorage.getItem("JOBSWIPE_GEMINI_MODEL") || "gemini-2.5-flash";
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         const prompt = `
 Tu es un expert en stratégie de recherche d'emploi.

@@ -248,9 +248,17 @@ const OffreDetail = () => {
         const offerData = { ...job, ...(job.raw || {}) };
         
         const API_URL = import.meta.env.VITE_API_URL;
+        const geminiKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
+        const geminiModel = localStorage.getItem("JOBSWIPE_GEMINI_MODEL");
+        if (!geminiKey) return;
+
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        headers['x-gemini-api-key'] = geminiKey;
+        if (geminiModel) headers['x-gemini-model-name'] = geminiModel;
+
         const res = await fetch(`${API_URL}/score-fast`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ cv_data: cvData, offer_data: offerData })
         });
 
@@ -325,6 +333,16 @@ const OffreDetail = () => {
       const cvData = formatProfileForBackend(userProfile);
       const offerData = formatJobForBackend(job);
       const API_URL = import.meta.env.VITE_API_URL;
+      const geminiKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
+      const geminiModel = localStorage.getItem("JOBSWIPE_GEMINI_MODEL");
+      if (!geminiKey) {
+          toast({ variant: "destructive", description: "Clé API Gemini manquante. Veuillez la configurer dans votre profil." });
+          setGenerating(false);
+          return;
+      }
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      headers['x-gemini-api-key'] = geminiKey;
+      if (geminiModel) headers['x-gemini-model-name'] = geminiModel;
 
       let cvResult = existingDocs.cv;
       let clResult = existingDocs.cl;
@@ -334,7 +352,7 @@ const OffreDetail = () => {
         toast({ description: "1/2 Génération du CV optimisé..." });
         const resCV = await fetch(`${API_URL}/generate-cv`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (userProfile as any)?.gender || "M" })
         });
 
@@ -349,7 +367,7 @@ const OffreDetail = () => {
         toast({ description: "2/2 Génération de la lettre de motivation..." });
         const resCL = await fetch(`${API_URL}/generate-cover-letter`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (userProfile as any)?.gender || "M" })
         });
 
@@ -406,9 +424,20 @@ const OffreDetail = () => {
       const offerData = formatJobForBackend(job);
 
       const API_URL = import.meta.env.VITE_API_URL;
+      const geminiKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
+      const geminiModel = localStorage.getItem("JOBSWIPE_GEMINI_MODEL");
+      if (!geminiKey) {
+          toast({ variant: "destructive", description: "Clé API Gemini manquante. Veuillez la configurer dans votre profil." });
+          setGeneratingCV(false);
+          return;
+      }
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      headers['x-gemini-api-key'] = geminiKey;
+      if (geminiModel) headers['x-gemini-model-name'] = geminiModel;
+
       const response = await fetch(`${API_URL}/generate-cv`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (userProfile as any)?.gender || "M" })
       });
 
@@ -470,9 +499,20 @@ const OffreDetail = () => {
       const offerData = formatJobForBackend(job);
 
       const API_URL = import.meta.env.VITE_API_URL;
+      const geminiKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
+      const geminiModel = localStorage.getItem("JOBSWIPE_GEMINI_MODEL");
+      if (!geminiKey) {
+          toast({ variant: "destructive", description: "Clé API Gemini manquante. Veuillez la configurer dans votre profil." });
+          setGeneratingCL(false);
+          return;
+      }
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      headers['x-gemini-api-key'] = geminiKey;
+      if (geminiModel) headers['x-gemini-model-name'] = geminiModel;
+
       const response = await fetch(`${API_URL}/generate-cover-letter`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (userProfile as any)?.gender || "M" })
       });
 
