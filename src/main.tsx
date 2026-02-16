@@ -4,6 +4,8 @@ import App from "./App";
 import "./index.css";
 import { bootstrapSupabaseAuth } from "./lib/authBootstrap";
 
+console.log("VITE_API_URL:", import.meta.env.VITE_API_URL);
+
 // Hotfix GitHub Pages + HashRouter: Supabase OAuth returns "#/#access_token=..."
 (() => {
   const h = window.location.hash || "";
