@@ -29,18 +29,18 @@ def _get_spacy_model():
     if _nlp_model is None and spacy is not None:
         try:
             # Tente de charger le modèle, sinon essaie de le télécharger
-            if not spacy.util.is_package("fr_core_news_md"):
-                print("[INFO] Modèle 'fr_core_news_md' introuvable. Tentative de téléchargement...")
-                spacy.cli.download("fr_core_news_md")
-            _nlp_model = spacy.load("fr_core_news_md")
+            if not spacy.util.is_package("fr_core_news_sm"):
+                print("[INFO] Modèle 'fr_core_news_sm' introuvable. Tentative de téléchargement...")
+                spacy.cli.download("fr_core_news_sm")
+            _nlp_model = spacy.load("fr_core_news_sm")
         except Exception as e:
-            print(f"[ERROR] Impossible de charger spaCy 'fr_core_news_md': {e}")
+            print(f"[ERROR] Impossible de charger spaCy 'fr_core_news_sm': {e}")
     return _nlp_model
 
 def preprocess_text_spacy(text: str) -> list[str]:
     """
     1. FONCTION PREPROCESS
-    Utilise spaCy ('fr_core_news_md') pour nettoyer le texte :
+    Utilise spaCy ('fr_core_news_sm') pour nettoyer le texte :
     - Mise en minuscule
     - Retrait de la ponctuation et des stop words
     - Lemmatisation
@@ -85,7 +85,7 @@ def vectorize_text_spacy(text: str):
     # doc.vector est une propriété de spaCy qui retourne la moyenne des vecteurs des mots
     return doc.vector
 
-def calculate_cosine_similarity_spacy(vec_a, vec_b) -> int:
+def calculate_cosine_similarity_spacy(vec_a, vec_b) -> float:
     """
     3. FONCTION COSINE_SIMILARITY
     Implémente la formule (A.B) / (||A||*||B||) via Scikit-Learn pour comparer 
@@ -96,10 +96,10 @@ def calculate_cosine_similarity_spacy(vec_a, vec_b) -> int:
         vec_b (numpy.ndarray): Vecteur de l'offre.
         
     Returns:
-        int: Un score de similarité entre 0 et 100.
+        float: Un score de similarité entre 0.0 et 1.0 (arrondi à 2 décimales).
     """
     if vec_a is None or vec_b is None or cosine_similarity is None:
-        return 0
+        return 0.0
     
     # Reshape nécessaire pour scikit-learn (attend un tableau 2D)
     vec_a_reshaped = vec_a.reshape(1, -1)
@@ -109,8 +109,8 @@ def calculate_cosine_similarity_spacy(vec_a, vec_b) -> int:
     similarity_matrix = cosine_similarity(vec_a_reshaped, vec_b_reshaped)
     similarity_score = similarity_matrix[0][0]
     
-    # Conversion en pourcentage (0-100) et arrondi
-    return int(round(max(0, min(100, similarity_score * 100))))
+    # Retourne un float entre 0.0 et 1.0 arrondi à 2 décimales
+    return round(float(max(0.0, min(1.0, similarity_score))), 2)
 
 def analyze_missing_keywords_spacy(cv_text: str, job_desc: str) -> dict:
     """
@@ -248,7 +248,7 @@ def run_matcher_demo(cv_text: str, job_desc: str):
         # 3. Cosine Similarity
         print("[3] Similarité Cosinus...")
         score = calculate_cosine_similarity_spacy(cv_vec, job_vec)
-        print(f"   Score de compatibilité : {score}/100")
+        print(f"   Score de compatibilité (Global) : {int(score * 100)}%")
     else:
         print("   [Erreur] Impossible de vectoriser (modèle spaCy manquant ?)")
 
@@ -314,10 +314,10 @@ if __name__ == "__main__":
     }
     
     scores = batch_match_offers(cv_struct, offres_batch)
-    print(f"Scores calculés pour 3 offres : {scores}")
+    print(f"Scores calculés pour 3 offres (Algorithme Exigeant) : {scores}")
 
     # 2. Test unitaire détaillé (Texte)
-    print("\n[2] Test unitaire détaillé (Texte brut)")
+    print("\n[2] Test unitaire détaillé (Texte brut - Mode Global)")
     # On reconstruit un texte simple pour la démo détaillée
     cv_text_demo = cv_struct["raw_summary"] + " " + " ".join(cv_struct["skills"]["hard_skills"])
     job_text_demo = offres_batch["job_1_perfect_match"]["description"]
