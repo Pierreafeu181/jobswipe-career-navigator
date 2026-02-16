@@ -25,13 +25,6 @@ load_dotenv()
 # 1. CONFIG GEMINI
 # ============================================================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-# Fallback sur 1.5-flash si 2.5 est demandé (instabilité JSON connue sur la 2.5)
-env_model = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
-GEMINI_MODEL_NAME = "gemini-1.5-flash" if "2.5" in env_model else env_model
-
-_client = genai.Client(api_key=GEMINI_API_KEY)
-
 
 # ============================================================================
 # 2. OUTIL : extraction du JSON renvoyé par le modèle
@@ -193,12 +186,13 @@ VERY IMPORTANT RULES:
 # 4. APPEL À GEMINI
 # ============================================================================
 
-def generate_with_gemini(prompt: str) -> str:
+def generate_with_gemini(prompt: str, api_key: str, model_name: str) -> str:
     """
     Call Gemini with the given prompt and return the raw text output.
     """
-    response = _client.models.generate_content(
-        model=GEMINI_MODEL_NAME,
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=model_name,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.2,
@@ -223,13 +217,15 @@ def generate_with_gemini(prompt: str) -> str:
 def score_profile_with_gemini(
     offer_parsed: Dict[str, Any],
     cv_parsed: Dict[str, Any],
+    api_key: str,
+    model_name: str = "gemini-1.5-flash"
 ) -> Dict[str, Any]:
     """
     High-level: prend l'offre parsée + le CV parsé,
     appelle Gemini pour obtenir score + conseils.
     """
     prompt = build_compat_prompt(offer_parsed, cv_parsed)
-    raw_output = generate_with_gemini(prompt)
+    raw_output = generate_with_gemini(prompt, api_key, model_name)
     parsed_json = extract_json_from_output(raw_output)
     return parsed_json
 

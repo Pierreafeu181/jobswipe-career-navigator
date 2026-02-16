@@ -33,12 +33,12 @@ class JobSwipeGeneratorService:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir, exist_ok=True)
 
-    def parse_data(self, cv_text: str, offer_text: str) -> Dict[str, Any]:
+    def parse_data(self, cv_text: str, offer_text: str, api_key: str, model_name: str) -> Dict[str, Any]:
         """
         Helper pour parser les données brutes.
         """
-        cv_parsed = parse_cv_with_gemini(cv_text)
-        offer_parsed = parse_job_offer_gemini(offer_text)
+        cv_parsed = parse_cv_with_gemini(cv_text, api_key=api_key, model_name=model_name)
+        offer_parsed = parse_job_offer_gemini(offer_text, api_key=api_key, model_name=model_name)
         return {
             "cv_parsed": cv_parsed,
             "offer_parsed": offer_parsed
@@ -47,7 +47,9 @@ class JobSwipeGeneratorService:
     def process_cv(
         self, 
         cv_parsed: Dict[str, Any],
-        offer_parsed: Dict[str, Any]
+        offer_parsed: Dict[str, Any],
+        api_key: str,
+        model_name: str
     ) -> Dict[str, Any]:
         """
         Génère uniquement le CV (Content -> PDF).
@@ -67,7 +69,7 @@ class JobSwipeGeneratorService:
             "skills": cv_parsed.get("skills", {}),
             "interests": cv_parsed.get("interests", [])
         }
-        generated_content = generate_full_cv_content(offer_parsed, user_data)
+        generated_content = generate_full_cv_content(offer_parsed, user_data, api_key=api_key, model_name=model_name)
         results['generated_content'] = generated_content
 
         # 3. Rendu PDF du CV
@@ -122,7 +124,9 @@ class JobSwipeGeneratorService:
         self, 
         cv_parsed: Dict[str, Any],
         offer_parsed: Dict[str, Any],
-        gender: str = "M"
+        gender: str = "M",
+        api_key: str = "",
+        model_name: str = "gemini-1.5-flash"
     ) -> Dict[str, Any]:
         """
         Génère uniquement la lettre de motivation.
@@ -139,7 +143,9 @@ class JobSwipeGeneratorService:
             cv_parsed=cv_parsed,
             output_dir=self.output_dir,
             docx_filename=f"cover_letter_{uuid.uuid4().hex}.docx",
-            gender=gender
+            gender=gender,
+            api_key=api_key,
+            model_name=model_name
         )
         results['paths'] = {
             'cl_docx': cl_result['docx_path'],
@@ -151,12 +157,14 @@ class JobSwipeGeneratorService:
     def process_scoring(
         self, 
         cv_data: Dict[str, Any],
-        offer_data: Dict[str, Any]
+        offer_data: Dict[str, Any],
+        api_key: str,
+        model_name: str
     ) -> Dict[str, Any]:
         """
         Calcule le score de compatibilité via Gemini.
         """
-        compatibility = score_profile_with_gemini(offer_data, cv_data)
+        compatibility = score_profile_with_gemini(offer_data, cv_data, api_key=api_key, model_name=model_name)
         return compatibility
 
     def compute_fast_score(
@@ -169,21 +177,21 @@ class JobSwipeGeneratorService:
         """
         return compute_heuristic_score(offer_data, cv_data)
 
-    def parse_only_offer(self, offer_text: str) -> Dict[str, Any]:
+    def parse_only_offer(self, offer_text: str, api_key: str, model_name: str) -> Dict[str, Any]:
         """
         Parse uniquement le texte d'une offre d'emploi.
         """
-        return parse_job_offer_gemini(offer_text)
+        return parse_job_offer_gemini(offer_text, api_key=api_key, model_name=model_name)
 
-    def parse_only_cv(self, cv_text: str, current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def parse_only_cv(self, cv_text: str, api_key: str, model_name: str, current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Parse uniquement le texte d'un CV.
         """
-        return parse_cv_with_gemini(cv_text, current_profile)
+        return parse_cv_with_gemini(cv_text, api_key=api_key, model_name=model_name, current_profile=current_profile)
 
-    def parse_cv_document(self, file_content: bytes, filename: str, current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def parse_cv_document(self, file_content: bytes, filename: str, api_key: str, model_name: str, current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Parse un CV depuis un fichier (PDF, DOCX, TXT).
         """
         cv_text = extract_text_from_file(file_content, filename)
-        return self.parse_only_cv(cv_text, current_profile)
+        return self.parse_only_cv(cv_text, api_key=api_key, model_name=model_name, current_profile=current_profile)

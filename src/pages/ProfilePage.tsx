@@ -4,7 +4,7 @@ import { LogoHeader } from "@/components/LogoHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2, User, Save, CheckCircle2, AlertCircle, Home, Briefcase, LayoutDashboard, Upload, FileText } from "lucide-react";
+import { Loader2, User, Save, CheckCircle2, AlertCircle, Home, Briefcase, LayoutDashboard, Upload, FileText, Key } from "lucide-react";
 import { Profile } from "@/types/profile";
 import { PersonalInfoSection } from "@/components/profile/PersonalInfoSection";
 import { EducationSection } from "@/components/profile/EducationSection";
@@ -51,6 +51,8 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
   const [saveStatus, setSaveStatus] = useState<"success" | "error" | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [geminiKey, setGeminiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState("");
 
   // Récupérer l'utilisateur authentifié depuis Supabase
   useEffect(() => {
@@ -180,6 +182,12 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
       } as unknown as Profile;
 
       setProfile(loadedProfile);
+
+      const storedKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
+      if (storedKey) setGeminiKey(storedKey);
+
+      const storedModel = localStorage.getItem("JOBSWIPE_GEMINI_MODEL");
+      if (storedModel) setGeminiModel(storedModel);
 
       // Conversion et sauvegarde pour les anciennes pages
       const userProfileForStorage: UserProfile = {
@@ -322,6 +330,18 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
 
       setSaveStatus("success");
 
+      if (geminiKey) {
+        localStorage.setItem("JOBSWIPE_GEMINI_KEY", geminiKey);
+      } else {
+        localStorage.removeItem("JOBSWIPE_GEMINI_KEY");
+      }
+
+      if (geminiModel) {
+        localStorage.setItem("JOBSWIPE_GEMINI_MODEL", geminiModel);
+      } else {
+        localStorage.removeItem("JOBSWIPE_GEMINI_MODEL");
+      }
+
       // Mettre à jour également le profil simplifié dans le localStorage
       const userProfileForStorage: UserProfile = {
         firstName: profile.first_name || '',
@@ -388,8 +408,21 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
       }
 
       const API_URL = import.meta.env.VITE_API_URL;
+      const geminiKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
+      if (!geminiKey) {
+          toast({ variant: "destructive", description: "Clé API Gemini manquante. Veuillez la configurer dans votre profil pour utiliser l'analyse IA." });
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          setImporting(false);
+          return;
+      }
+      const geminiModel = localStorage.getItem("JOBSWIPE_GEMINI_MODEL");
+      const headers: HeadersInit = {};
+      headers['x-gemini-api-key'] = geminiKey;
+      if (geminiModel) headers['x-gemini-model-name'] = geminiModel;
+
       const response = await fetch(`${API_URL}/parse-cv-upload`, {
         method: "POST",
+        headers,
         body: formData,
       });
 
@@ -705,6 +738,44 @@ const ProfilePage = ({ userId }: ProfilePageProps) => {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <CollapsibleSection title="Paramètres du compte" defaultOpen={false}>
             <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <h3 className="font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  Clé API Gemini
+                </h3>
+                <p className="text-sm text-slate-600 mb-4">
+                  Renseignez votre clé API Gemini pour activer les fonctionnalités d'IA avancées (Analyse de timing, Feedback, etc.).
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="geminiKey">Clé API</Label>
+                  <Input
+                    id="geminiKey"
+                    type="password"
+                    value={geminiKey}
+                    onChange={(e) => setGeminiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="bg-white"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Votre clé est stockée localement dans votre navigateur.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="geminiModel">Modèle Gemini (Optionnel)</Label>
+                  <Input
+                    id="geminiModel"
+                    type="text"
+                    value={geminiModel}
+                    onChange={(e) => setGeminiModel(e.target.value)}
+                    placeholder="ex: gemini-1.5-flash"
+                    className="bg-white"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Par défaut: gemini-2.5-flash
+                  </p>
+                </div>
+              </div>
+
               <div className="p-4 rounded-2xl bg-red-50 border border-red-200">
                 <h3 className="font-semibold text-red-800 mb-2">Zone de danger</h3>
                 <p className="text-sm text-red-700 mb-4">

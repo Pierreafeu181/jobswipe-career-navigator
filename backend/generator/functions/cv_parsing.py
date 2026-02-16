@@ -30,11 +30,6 @@ load_dotenv()
 # 1. CONFIG GEMINI
 # ============================================================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME")
-
-print("model name" , GEMINI_MODEL_NAME)
-_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 # ============================================================================
@@ -230,12 +225,13 @@ Here is the CV text to parse:
 # 4. APPEL À GEMINI
 # ============================================================================
 
-def generate_with_gemini(prompt: str) -> str:
+def generate_with_gemini(prompt: str, api_key: str, model_name: str) -> str:
     """
     Call Gemini with the given prompt and return the raw text output.
     """
-    response = _client.models.generate_content(
-        model=GEMINI_MODEL_NAME,
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=model_name,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.1,
@@ -298,13 +294,13 @@ def extract_text_from_file(file_content: bytes, filename: str) -> str:
     return text
 
 
-def parse_cv_with_gemini(cv_text: str, current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def parse_cv_with_gemini(cv_text: str, api_key: str, model_name: str = "gemini-1.5-flash", current_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     High-level function: takes raw CV text, sends it to Gemini,
     parses the JSON, and returns a Python dict.
     """
     prompt = build_cv_parsing_prompt(cv_text, current_profile)
-    raw_output = generate_with_gemini(prompt)
+    raw_output = generate_with_gemini(prompt, api_key, model_name)
     parsed_json = extract_json_from_output(raw_output)
     return parsed_json
 

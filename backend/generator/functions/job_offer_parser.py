@@ -28,18 +28,6 @@ load_dotenv()
 # 1. CONFIG GEMINI
 # ============================================================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
-
-if not GEMINI_API_KEY:
-    # Tu peux remplacer par une ValueError si tu préfères crasher fort
-    raise RuntimeError(
-        "GEMINI_API_KEY est introuvable dans les variables d'environnement. "
-        "Définis GEMINI_API_KEY avant de lancer le script."
-    )
-
-_client = genai.Client(api_key=GEMINI_API_KEY)
-
 
 # ============================================================================
 # 2. OUTILS : détection langue, prompt, extraction JSON
@@ -154,12 +142,13 @@ def extract_json_from_output(output: str) -> Dict[str, Any]:
 # 3. APPEL GEMINI
 # ============================================================================
 
-def generate_with_gemini(prompt: str) -> str:
+def generate_with_gemini(prompt: str, api_key: str, model_name: str) -> str:
     """
     Envoie un prompt à Gemini et renvoie le texte généré.
     """
-    response = _client.models.generate_content(
-        model=GEMINI_MODEL_NAME,
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=model_name,
         contents=prompt
     )
     # response.text contient généralement la réponse combinée
@@ -170,14 +159,14 @@ def generate_with_gemini(prompt: str) -> str:
 # 4. FONCTION PRINCIPALE : parse_job_offer_gemini
 # ============================================================================
 
-def parse_job_offer_gemini(offer_text: str) -> Dict[str, Any]:
+def parse_job_offer_gemini(offer_text: str, api_key: str, model_name: str = "gemini-1.5-flash") -> Dict[str, Any]:
     """
     Analyse une offre d'emploi en utilisant Gemini
     et renvoie un dictionnaire JSON structuré.
     """
     language = detect_language(offer_text)
     prompt = build_parsing_prompt(offer_text, language)
-    raw_output = generate_with_gemini(prompt)
+    raw_output = generate_with_gemini(prompt, api_key, model_name)
     parsed_json = extract_json_from_output(raw_output)
 
     print(parsed_json)

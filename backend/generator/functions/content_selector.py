@@ -11,21 +11,14 @@ load_dotenv()
 # 1. CONFIGURATION GEMINI
 # ============================================================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-
-if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY est manquant.")
-
-_client = genai.Client(api_key=GEMINI_API_KEY)
-
 # ============================================================================
 # 2. UTILITAIRES
 # ============================================================================
 
-def _generate_content(prompt: str) -> str:
-    response = _client.models.generate_content(
-        model=GEMINI_MODEL_NAME,
+def _generate_content(prompt: str, api_key: str, model_name: str) -> str:
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=model_name,
         contents=prompt
     )
     return response.text.strip()
@@ -52,7 +45,9 @@ def _extract_json(output: str) -> Any:
 def select_all_relevant_content(
     offer: Dict[str, Any],
     user_data: Dict[str, Any],
-    limits: Dict[str, int] = {"exp": 3, "proj": 2, "act": 3}
+    limits: Dict[str, int] = {"exp": 3, "proj": 2, "act": 3},
+    api_key: str = "",
+    model_name: str = "gemini-2.5-flash"
 ) -> Dict[str, Any]:
     """
     Analyse l'ensemble du profil et sélectionne les éléments les plus stratégiques
@@ -86,7 +81,7 @@ Note : Pour les expériences et projets, retourne l'objet complet tel qu'il appa
 """
 
     try:
-        raw_response = _generate_content(prompt)
+        raw_response = _generate_content(prompt, api_key, model_name)
         selected_data = _extract_json(raw_response)
         
         # Mapping de sécurité pour s'assurer qu'on renvoie des listes

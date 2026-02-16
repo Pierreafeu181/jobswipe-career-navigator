@@ -53,15 +53,10 @@ load_dotenv()
 # 1. CONFIG GEMINI
 # ============================================================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
-
 try:
     from xhtml2pdf import pisa
 except ImportError:
     raise ImportError("La librairie 'xhtml2pdf' est manquante. Installez-la avec : pip install xhtml2pdf")
-
-_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 # ============================================================================
@@ -271,17 +266,21 @@ def generate_letter_structure_with_gemini(
     reference: Optional[str] = None,
     city_override: Optional[str] = None,
     date_override: Optional[str] = None,
+    api_key: str = "",
+    model_name: str = "gemini-1.5-flash"
 ) -> Dict[str, Any]:
     # 1. Préparation des indices
     contact = pick_contact_info(cv_parsed)
     city_hint = city_override or contact["city"] or "Paris"
     date_hint = date_override or french_date()
     gender_label = "masculin" if gender.upper() == "M" else "féminin"
+    
+    client = genai.Client(api_key=api_key)
 
     # 2. Appel 1 : Header & Meta
     prompt_header = build_header_prompt(offer_parsed, cv_parsed, city_hint, date_hint, reference)
-    resp_header = _client.models.generate_content(
-        model=GEMINI_MODEL_NAME,
+    resp_header = client.models.generate_content(
+        model=model_name,
         contents=prompt_header
     )
     json_header = extract_json_from_output(resp_header.text)
@@ -291,8 +290,8 @@ def generate_letter_structure_with_gemini(
 
     # 3. Appel 2 : Body
     prompt_body = build_body_prompt(offer_parsed, cv_parsed, gender_label, objet_line)
-    resp_body = _client.models.generate_content(
-        model=GEMINI_MODEL_NAME,
+    resp_body = client.models.generate_content(
+        model=model_name,
         contents=prompt_body
     )
     json_body = extract_json_from_output(resp_body.text)
@@ -532,6 +531,8 @@ def generate_personalized_cover_letter_docx_and_pdf(
     reference: Optional[str] = None,
     city_override: Optional[str] = None,
     date_override: Optional[str] = None,
+    api_key: str = "",
+    model_name: str = "gemini-1.5-flash"
 ) -> Dict[str, Any]:
     """
     Pipeline complet :
@@ -557,6 +558,8 @@ def generate_personalized_cover_letter_docx_and_pdf(
         reference=reference,
         city_override=city_override,
         date_override=date_override,
+        api_key=api_key,
+        model_name=model_name
     )
 
     # 2) Génération du DOCX

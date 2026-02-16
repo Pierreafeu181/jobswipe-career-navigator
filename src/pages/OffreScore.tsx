@@ -114,9 +114,21 @@ const OffreScore = () => {
 
       // 4. Appeler l'API de scoring
       const API_URL = import.meta.env.VITE_API_URL;
+      const geminiKey = localStorage.getItem("JOBSWIPE_GEMINI_KEY");
+      const geminiModel = localStorage.getItem("JOBSWIPE_GEMINI_MODEL");
+      if (!geminiKey) {
+          toast({ variant: "destructive", description: "Clé API Gemini manquante. Veuillez la configurer dans votre profil." });
+          setLoading(false);
+          return;
+      }
+
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      headers['x-gemini-api-key'] = geminiKey;
+      if (geminiModel) headers['x-gemini-model-name'] = geminiModel;
+
       const response = await fetch(`${API_URL}/score-application`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ cv_data: cvData, offer_data: offerData, gender: (profile as any)?.gender || "M" })
       });
 
