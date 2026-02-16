@@ -54,6 +54,8 @@ const JobScore = ({ job, cvData }: { job: Job; cvData: any }) => {
         headers["x-gemini-api-key"] = geminiKey;
         if (geminiModel) headers["x-gemini-model-name"] = geminiModel;
 
+        console.log("Ma variable d'URL est :", import.meta.env.VITE_API_URL);
+        
         const res = await fetch(`${API_URL}/score-fast`, {
           method: "POST",
           headers,
